@@ -198,7 +198,8 @@ def generate_html(all_news):
     # Build cards (limit to 48 for performance)
     display_news = all_news[:48]
     cards_html = ''
-    for item in display_news:
+    ad_slots = ['monetag-slot-1', 'monetag-slot-2', 'monetag-slot-3', 'monetag-slot-4', 'monetag-slot-5']
+    for idx, item in enumerate(display_news):
         src_info = FEEDS.get(item['source'], {})
         color = src_info.get('color', '#666')
         icon = src_info.get('icon', 'N')
@@ -213,27 +214,33 @@ def generate_html(all_news):
         card_img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
         fallback_hidden = ' style="display:none"' if img else ''
 
-        cards_html += f'''
-    <div class="news-card source-accent-{src_class}" data-source="{src_class}">
-      <div class="card-img-wrapper">
-        <div class="card-img"{card_img_style}></div>
-        <div class="card-fallback"{fallback_hidden}>
-          <div class="source-gradient source-gradient-{src_class}"></div>
-          <div class="source-pattern"></div>
-          <span class="source-icon" style="background:{color};color:#000">{icon}</span>
-        </div>
-        <span class="card-source-tag" style="background:{color};color:#000">{source}</span>
-      </div>
-      <div class="card-body">
-        <h3><a href="{link}" target="_blank" rel="noopener">{title}</a></h3>
-        {f'<p>{desc}</p>' if desc else ''}
-        <div class="card-meta">
-          <span class="card-time">{time_ago}</span>
-          {f'<span class="card-author">{creator}</span>' if creator else ''}
-          <span class="card-arrow">→</span>
-        </div>
-      </div>
-    </div>'''
+        cards_html += f'''\n    <div class="news-card source-accent-{src_class}" data-source="{src_class}">\n''' + \
+    f'''      <div class="card-img-wrapper">\n''' + \
+    f'''        <div class="card-img"{card_img_style}></div>\n''' + \
+    f'''        <div class="card-fallback"{fallback_hidden}>\n''' + \
+    f'''          <div class="source-gradient source-gradient-{src_class}"></div>\n''' + \
+    f'''          <div class="source-pattern"></div>\n''' + \
+    f'''          <span class="source-icon" style="background:{color};color:#000">{icon}</span>\n''' + \
+    f'''        </div>\n''' + \
+    f'''        <span class="card-source-tag" style="background:{color};color:#000">{source}</span>\n''' + \
+    f'''      </div>\n''' + \
+    f'''      <div class="card-body">\n''' + \
+    f'''        <h3><a href="{link}" target="_blank" rel="noopener">{title}</a></h3>\n''' + \
+    (f'''        <p>{desc}</p>\n''' if desc else '') + \
+    f'''        <div class="card-meta">\n''' + \
+    f'''          <span class="card-time">{time_ago}</span>\n''' + \
+    (f'''          <span class="card-author">{creator}</span>\n''' if creator else '') + \
+    f'''          <span class="card-arrow">→</span>\n''' + \
+    f'''        </div>\n''' + \
+    f'''      </div>\n''' + \
+    f'''    </div>'''
+        # Insert ad containers after card 8, 16, 24
+        if (idx + 1) % 8 == 0 and (idx + 1) // 8 <= len(ad_slots):
+            slot_id = ad_slots[(idx + 1) // 8 - 1]
+            cards_html += f'''\n    <div class="ad-slot" data-ad-slot="{slot_id}">\n''' + \
+    f'''      <div class="ad-label">— Sponsored —</div>\n''' + \
+    f'''      <div id="{slot_id}" class="ad-container"></div>\n''' + \
+    f'''    </div>'''
 
     # Source filter buttons
     source_buttons = ''
@@ -255,8 +262,16 @@ def generate_html(all_news):
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+  <!-- Monetag -->
+  <meta name="monetag" content="f777923a656a6851a964b8cb54790337">
+  <link rel="dns-prefetch" href="https://cdn.monetag.com">
+  <link rel="preconnect" href="https://cdn.monetag.com" crossorigin>
+  <script src="https://quge5.com/88/tag.min.js" data-zone="247762" async data-cfasync="false"></script>
 </head>
 <body>
+
+<!-- Reading Progress Bar -->
+<div id="progress-bar"></div>
 
 <header>
   <nav class="nav-inner">
@@ -366,6 +381,29 @@ if (loadMore) {{
     loadMore.style.opacity = '0.5';
   }});
 }}
+
+// Reading progress bar
+window.addEventListener('scroll', () => {{
+  const bar = document.getElementById('progress-bar');
+  if (!bar) return;
+  const h = document.documentElement.scrollHeight - window.innerHeight;
+  bar.style.width = h > 0 ? Math.min((window.scrollY / h) * 100, 100) + '%' : '0%';
+}});
+
+// Monetag ad slots
+const Monetag = {{
+  init() {{
+    this._load('//cdn.monetag.com/v/2025.js', 'mt-main');
+  }},
+  _load(src, id) {{
+    if (document.getElementById(id)) return;
+    const s = document.createElement('script');
+    s.id = id; s.src = src; s.async = true;
+    s.setAttribute('data-zone', 'f777923a656a6851a964b8cb54790337');
+    document.head.appendChild(s);
+  }}
+}};
+Monetag.init();
 </script>
 
 </body>
