@@ -1,14 +1,10 @@
 #!/usr/bin/env python3
 """
-Rocket News Daily — Build Script
-Fetches tech news from RSS feeds and generates index.html
+Rocket News Daily — Professional Build Script
+Fetches tech news from RSS feeds and generates a polished index.html
 """
 
-import json
-import os
-import re
-import time
-import urllib.request
+import json, os, re, time, urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from html import escape
@@ -16,144 +12,129 @@ from html import escape
 # RSS Feed Sources
 FEEDS = {
     "Hacker News": {
-        "url": "https://hnrss.org/frontpage?count=12",
-        "color": "hackernews"
+        "url": "https://hnrss.org/frontpage?count=15",
+        "color": "#ff6600",
+        "icon": "Y"
     },
     "TechCrunch": {
         "url": "https://techcrunch.com/feed/",
-        "color": "techcrunch"
+        "color": "#0aff01",
+        "icon": "T"
     },
     "The Verge": {
         "url": "https://www.theverge.com/rss/index.xml",
-        "color": "theverge"
+        "color": "#1a8aff",
+        "icon": "V"
     },
     "DEV Community": {
         "url": "https://dev.to/feed",
-        "color": "devto"
+        "color": "#7c3aed",
+        "icon": "D"
     },
     "Ars Technica": {
         "url": "https://feeds.arstechnica.com/arstechnica/index",
-        "color": "arstechnica"
+        "color": "#ff4d00",
+        "icon": "A"
     },
     "Wired": {
         "url": "https://www.wired.com/feed/rss",
-        "color": "wired"
+        "color": "#aabbcc",
+        "icon": "W"
     }
 }
 
-def fetch_rss(url, timeout=10):
-    """Fetch and parse an RSS feed."""
+def fetch_rss(url, timeout=15):
     try:
-        req = urllib.request.Request(
-            url,
-            headers={
-                "User-Agent": "Rocket News Daily/1.0 (news aggregator)"
-            }
-        )
+        req = urllib.request.Request(url, headers={"User-Agent": "RocketNews/1.0"})
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = resp.read()
-        return data
+            return resp.read()
     except Exception as e:
-        print(f"  ⚠️  Fetch failed: {e}")
+        print(f"  ⚠️  {e}")
         return None
 
 def parse_rss(xml_data, source_name):
-    """Parse RSS/Atom XML into news items."""
     items = []
     try:
         root = ET.fromstring(xml_data)
-        # Handle both RSS and Atom formats
-        ns = {
-            'atom': 'http://www.w3.org/2005/Atom',
-            'dc': 'http://purl.org/dc/elements/1.1/',
-            'content': 'http://purl.org/rss/1.0/modules/content/'
-        }
+        ns = {'atom': 'http://www.w3.org/2005/Atom', 'dc': 'http://purl.org/dc/elements/1.1/', 
+              'content': 'http://purl.org/rss/1.0/modules/content/', 'media': 'http://search.yahoo.com/mrss/'}
 
-        # RSS 2.0
         for item in root.iter('item'):
             title = item.findtext('title', '')
             link = item.findtext('link', '')
             desc = item.findtext('description', '')
             pub_date = item.findtext('pubDate', '')
             creator = item.findtext('{http://purl.org/dc/elements/1.1/}creator', '')
+            # Try to get image
+            img = ''
+            media_el = item.find('{http://search.yahoo.com/mrss/}content')
+            if media_el is not None:
+                img = media_el.get('url', '')
+            if not img:
+                media_el = item.find('{http://search.yahoo.com/mrss/}thumbnail')
+                if media_el is not None:
+                    img = media_el.get('url', '')
+            enclosure = item.find('enclosure')
+            if not img and enclosure is not None:
+                url_attr = enclosure.get('url', '')
+                if url_attr and any(x in url_attr for x in ['.jpg', '.png', '.webp']):
+                    img = url_attr
 
-            # Clean description
             desc = re.sub(r'<[^>]+>', '', desc)
-            desc = desc.strip()
-            if len(desc) > 250:
-                desc = desc[:250] + '…'
+            desc = desc.strip()[:200]
+            if len(desc) >= 200:
+                desc = desc[:desc.rfind(' ')] + '…'
 
             items.append({
-                'title': title,
-                'link': link,
-                'description': desc,
-                'source': source_name,
-                'published': pub_date,
-                'creator': creator
+                'title': title, 'link': link, 'description': desc,
+                'source': source_name, 'published': pub_date,
+                'creator': creator, 'image': img
             })
 
-        # Atom format
         for entry in root.iter('{http://www.w3.org/2005/Atom}entry'):
             title = entry.findtext('{http://www.w3.org/2005/Atom}title', '')
             link_el = entry.find('{http://www.w3.org/2005/Atom}link')
             link = link_el.get('href', '') if link_el is not None else ''
-            desc_el = entry.find('{http://www.w3.org/2005/Atom}content')
-            if desc_el is None:
-                desc_el = entry.find('{http://www.w3.org/2005/Atom}summary')
+            desc_el = entry.find('{http://www.w3.org/2005/Atom}content') or entry.find('{http://www.w3.org/2005/Atom}summary')
             desc = desc_el.text if desc_el is not None else ''
-            desc = re.sub(r'<[^>]+>', '', desc)
-            desc = desc.strip()
-            if len(desc) > 250:
-                desc = desc[:250] + '…'
-            pub_date = entry.findtext('{http://www.w3.org/2005/Atom}published', '') or \
-                       entry.findtext('{http://www.w3.org/2005/Atom}updated', '')
+            desc = re.sub(r'<[^>]+>', '', desc).strip()[:200]
+            if len(desc) >= 200:
+                desc = desc[:desc.rfind(' ')] + '…'
+            pub_date = entry.findtext('{http://www.w3.org/2005/Atom}published', '') or entry.findtext('{http://www.w3.org/2005/Atom}updated', '')
             author_el = entry.find('{http://www.w3.org/2005/Atom}author')
             creator = author_el.findtext('{http://www.w3.org/2005/Atom}name', '') if author_el is not None else ''
-
+            # Try image from Atom
+            img = ''
+            media_el = entry.find('{http://search.yahoo.com/mrss/}content')
+            if media_el is not None:
+                img = media_el.get('url', '')
             items.append({
-                'title': title,
-                'link': link,
-                'description': desc,
-                'source': source_name,
-                'published': pub_date,
-                'creator': creator
+                'title': title, 'link': link, 'description': desc,
+                'source': source_name, 'published': pub_date,
+                'creator': creator, 'image': img
             })
-
     except Exception as e:
         print(f"  ⚠️  Parse error: {e}")
-
     return items
 
 def format_time(pub_date_str):
-    """Format published date string to relative time."""
     if not pub_date_str:
         return ''
-
-    # Try common date formats
-    formats = [
-        '%a, %d %b %Y %H:%M:%S %z',
-        '%a, %d %b %Y %H:%M:%S %Z',
-        '%Y-%m-%dT%H:%M:%S%z',
-        '%Y-%m-%dT%H:%M:%S.%f%z',
-        '%Y-%m-%dT%H:%M:%SZ',
-        '%Y-%m-%dT%H:%M:%S',
-    ]
-
+    formats = ['%a, %d %b %Y %H:%M:%S %z', '%a, %d %b %Y %H:%M:%S %Z',
+               '%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M:%S.%f%z',
+               '%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S']
     pub_date = None
     for fmt in formats:
         try:
             pub_date = datetime.strptime(pub_date_str.strip(), fmt)
             break
-        except (ValueError, AttributeError):
+        except:
             continue
-
     if pub_date is None:
         return pub_date_str[:10] if pub_date_str else ''
-
     now = datetime.now(pub_date.tzinfo) if pub_date.tzinfo else datetime.now()
     diff = now - pub_date
     hours = diff.total_seconds() / 3600
-
     if hours < 1:
         mins = int(diff.total_seconds() / 60)
         return f'{mins}m ago' if mins > 0 else 'just now'
@@ -165,100 +146,157 @@ def format_time(pub_date_str):
         return f'{int(hours / 24)}d ago'
 
 def generate_html(all_news):
-    """Generate the complete HTML page."""
-    now = datetime.now().strftime('%B %d, %Y at %I:%M %p')
-
-    # Categories for filter buttons
+    now = datetime.now().strftime('%b %d, %Y · %I:%M %p')
     sources = sorted(set(item['source'] for item in all_news))
+    load_more_html = '<div class="load-more-wrapper"><button id="loadMore" class="load-more-btn">Show More Stories</button></div>' if len(all_news) > 48 else ''
 
-    # Build cards HTML
-    cards_html = ''
-    for item in all_news:
-        source_class = item['source'].lower().replace(' ', '')
-        color_class = FEEDS.get(item['source'], {}).get('color', 'hackernews')
+    # Hero: top 3 articles with images (or without)
+    hero_cards_html = ''
+    featured = all_news[:3]
+    for i, item in enumerate(featured):
+        src_info = FEEDS.get(item['source'], {})
+        color = src_info.get('color', '#666')
+        icon = src_info.get('icon', 'N')
+        title = escape(item['title'])
+        desc = escape(item['description'])
+        link = escape(item['link'])
         time_ago = format_time(item['published'])
-        title = escape(item['title']) if item['title'] else 'Untitled'
-        desc = escape(item['description']) if item['description'] else 'No description available.'
-        link = escape(item['link']) if item['link'] else '#'
+        creator = escape(item['creator']) if item.get('creator') else ''
+        img = item.get('image', '')
+
+        img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
+        fallback_style = ' style="display:none"' if img else ''
+
+        hero_cards_html += f'''
+    <a href="{link}" target="_blank" rel="noopener" class="featured-card" style="--accent:{color}">
+      <div class="featured-bg"{img_style}>
+        <div class="featured-overlay"></div>
+      </div>
+      <div class="featured-content">
+        <span class="featured-source"><span class="source-dot" style="background:{color}"></span>{escape(item['source'])}</span>
+        <h2>{title}</h2>
+        {f'<p>{desc}</p>' if desc else ''}
+        <div class="featured-meta">
+          {f'<span class="featured-author">{creator}</span>' if creator else ''}
+          <span class="featured-time">{time_ago}</span>
+        </div>
+      </div>
+    </a>'''
+
+    # Build cards (limit to 48 for performance)
+    display_news = all_news[:48]
+    cards_html = ''
+    for item in display_news:
+        src_info = FEEDS.get(item['source'], {})
+        color = src_info.get('color', '#666')
+        icon = src_info.get('icon', 'N')
+        title = escape(item['title'])
+        desc = escape(item['description'])
+        link = escape(item['link'])
+        time_ago = format_time(item['published'])
         source = escape(item['source'])
+        creator = escape(item['creator']) if item.get('creator') else ''
+        img = item.get('image', '')
+        card_img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
+        card_fallback_style = ' style="display:none"' if img else ''
 
-        cards_html += f"""
-    <div class="news-card" data-source="{source_class}">
-      <div class="card-top">
-        <span class="source-tag source-{color_class}">{source}</span>
-        <span class="time">{time_ago}</span>
+        cards_html += f'''
+    <div class="news-card" data-source="{source.lower().replace(' ', '')}">
+      <div class="card-img-wrapper">
+        <div class="card-img"{card_img_style}>
+          <div class="card-img-fallback" style="display:{'none' if img else 'flex'}">
+            <span class="source-icon" style="background:{color};color:#000">{icon}</span>
+          </div>
+        </div>
+        <span class="card-source-tag" style="background:{color};color:#000">{source}</span>
       </div>
-      <h2><a href="{link}" target="_blank" rel="noopener">{title}</a></h2>
-      <p>{desc}</p>
-      <div class="card-footer">
-        <a href="{link}" class="read-more" target="_blank" rel="noopener">
-          Read more <span class="read-arrow">→</span>
-        </a>
+      <div class="card-body">
+        <h3><a href="{link}" target="_blank" rel="noopener">{title}</a></h3>
+        {f'<p>{desc}</p>' if desc else ''}
+        <div class="card-meta">
+          <span class="card-time">{time_ago}</span>
+          {f'<span class="card-author">{creator}</span>' if creator else ''}
+          <span class="card-arrow">→</span>
+        </div>
       </div>
-    </div>"""
+    </div>'''
 
+    # Source filter buttons
     source_buttons = ''
     for s in sources:
         s_class = s.lower().replace(' ', '')
-        source_buttons += f'\n        <button class="cat-btn" data-filter="{s_class}">{escape(s)}</button>'
+        src_info = FEEDS.get(s, {})
+        color = src_info.get('color', '#666')
+        source_buttons += f'''
+        <button class="cat-btn" data-filter="{s_class}" style="--btn-color:{color}">{escape(s)}</button>'''
 
-    html = f"""<!DOCTYPE html>
+    html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rocket News Daily — Latest Tech News</title>
+  <title>Rocket News Daily — Tech News</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
 </head>
 <body>
 
 <header>
-  <div class="header-inner">
-    <div class="logo-group">
-      <div class="logo-icon">N</div>
-      <div>
-        <div class="logo-text">Rocket News</div>
-        <div class="logo-sub">Daily Tech News</div>
-      </div>
+  <nav class="nav-inner">
+    <div class="nav-left">
+      <a href="/" class="nav-logo">
+        <span class="nav-logo-icon">🚀</span>
+        <span class="nav-logo-text">Rocket News</span>
+        <span class="nav-logo-badge">Daily</span>
+      </a>
     </div>
-    <div class="header-right">
-      <span class="update-badge">
-        <span class="update-dot"></span>
-        Updated {now}
-      </span>
-      <span class="stats-badge">{len(all_news)} stories · {len(sources)} sources</span>
+    <div class="nav-right">
+      <span class="nav-stats">{len(display_news)} stories</span>
+      <span class="nav-update">Updated {now}</span>
     </div>
-  </div>
+  </nav>
 </header>
 
-<section class="hero">
-  <h1>Latest in <span>Tech</span></h1>
-  <p>Curated tech news from the best sources — updated daily at 7:00 AM.</p>
-</section>
+<main>
+  <section class="hero-section">
+    <div class="hero-header">
+      <h1>Today's <span class="gradient-text">Tech</span></h1>
+      <p>The latest news from across the tech world — curated daily.</p>
+    </div>
+    <div class="featured-grid">
+      {hero_cards_html}
+    </div>
+  </section>
 
-<section class="categories">
-  <button class="cat-btn active" data-filter="all">All</button>
-  {source_buttons}
-</section>
+  <section class="filter-section">
+    <div class="filter-inner">
+      <button class="cat-btn active" data-filter="all">All</button>
+      {source_buttons}
+    </div>
+  </section>
 
-<main class="container">
-  <div class="news-grid">
-    {cards_html}
-  </div>
+  <section class="news-section">
+    <div class="news-grid" id="newsGrid">
+      {cards_html}
+    </div>
+    {load_more_html}
+  </section>
 </main>
 
 <footer>
   <div class="footer-inner">
-    <div class="footer-name">🚀 Rocket News Daily</div>
+    <div class="footer-brand">🚀 Rocket News Daily</div>
     <div class="footer-links">
-      <a href="https://github.com/Rocketnew/rocket-tech" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/Rocketnew/rocket-tech" target="_blank">GitHub</a>
       <span>·</span>
-      <span>Powered by RSS</span>
+      <span>Daily at 7 AM</span>
       <span>·</span>
-      <span>Updated daily at 7:00 AM</span>
+      <span>{len(FEEDS)} sources</span>
     </div>
-    <div class="footer-meta">Data from Hacker News, TechCrunch, The Verge, Dev.to, Ars Technica &amp; Wired</div>
+    <div class="footer-meta">Data from {', '.join(FEEDS.keys())}</div>
   </div>
 </footer>
 
@@ -270,75 +308,93 @@ document.querySelectorAll('.cat-btn').forEach(btn => {{
     btn.classList.add('active');
     const filter = btn.dataset.filter;
     document.querySelectorAll('.news-card').forEach(card => {{
-      card.style.display = (filter === 'all' || card.dataset.source === filter) ? 'block' : 'none';
+      if (filter === 'all') {{
+        card.style.display = '';
+        card.style.opacity = '1';
+      }} else {{
+        const match = card.dataset.source === filter;
+        card.style.display = match ? '' : 'none';
+        if (match) card.style.opacity = '1';
+      }}
     }});
   }});
 }});
 
-// Animate cards on scroll
+// Scroll animation
 const observer = new IntersectionObserver((entries) => {{
   entries.forEach(entry => {{
     if (entry.isIntersecting) {{
-      entry.target.style.opacity = '1';
-      entry.target.style.transform = 'translateY(0)';
+      entry.target.classList.add('visible');
+      observer.unobserve(entry.target);
     }}
   }});
-}}, {{ threshold: 0.1, rootMargin: '50px' }});
+}}, {{ threshold: 0.05 }});
 
-document.querySelectorAll('.news-card').forEach(card => {{
-  card.style.opacity = '0';
-  card.style.transform = 'translateY(10px)';
-  card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
-  observer.observe(card);
+document.querySelectorAll('.news-card, .featured-card').forEach(el => {{
+  el.classList.add('animate-in');
+  observer.observe(el);
 }});
+
+// Load more (show all hidden cards)
+const loadMore = document.getElementById('loadMore');
+if (loadMore) {{
+  let hiddenCards = [];
+  document.querySelectorAll('.news-card').forEach((card, i) => {{
+    if (i >= {min(48, len(display_news))}) card.style.display = 'none';
+  }});
+  loadMore.addEventListener('click', () => {{
+    document.querySelectorAll('.news-card').forEach(card => {{
+      card.style.display = '';
+      card.classList.add('visible');
+    }});
+    loadMore.textContent = 'All stories loaded';
+    loadMore.disabled = true;
+    loadMore.style.opacity = '0.5';
+  }});
+}}
 </script>
 
 </body>
-</html>"""
-
+</html>'''
     return html
 
 def main():
-    print("🚀 Rocket News Daily — Build Script")
+    print("🚀 Rocket News Daily — Build")
     print(f"   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
-
     all_news = []
     for source_name, info in FEEDS.items():
-        print(f"📡 Fetching {source_name}...")
+        print(f"📡 {source_name}...", end=' ')
         xml_data = fetch_rss(info['url'])
         if xml_data:
             items = parse_rss(xml_data, source_name)
-            print(f"   ✅ Got {len(items)} articles")
+            print(f"✅ {len(items)} articles")
             all_news.extend(items)
         else:
-            print(f"   ❌ Failed to fetch")
-
-    # Sort by published date (newest first)
+            print("❌ Failed")
+    
     all_news.sort(key=lambda x: x.get('published', ''), reverse=True)
-
-    # Remove duplicates by title (case-insensitive)
-    seen_titles = set()
-    unique_news = []
+    seen = set()
+    unique = []
     for item in all_news:
-        title_lower = item['title'].lower().strip() if item['title'] else ''
-        if title_lower and title_lower not in seen_titles:
-            seen_titles.add(title_lower)
-            unique_news.append(item)
+        t = item['title'].lower().strip() if item['title'] else ''
+        if t and t not in seen:
+            seen.add(t)
+            unique.append(item)
 
-    print(f"\n📊 Total: {len(unique_news)} unique articles from {len(FEEDS)} sources")
+    print(f"\n📊 {len(unique)} unique articles from {len(FEEDS)} sources")
     print()
-
-    # Generate HTML
-    html = generate_html(unique_news)
-
-    # Write file
-    output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
-    with open(output_path, 'w', encoding='utf-8') as f:
+    html = generate_html(unique)
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
+    with open(out, 'w', encoding='utf-8') as f:
         f.write(html)
-
-    print(f"✅ Generated index.html ({len(html)} bytes)")
-    print(f"   → {output_path}")
+    print(f"✅ index.html ({len(html)} bytes)")
+    print(f"   → {out}")
+    # Show sources
+    for s in sorted(set(i['source'] for i in unique)):
+        count = sum(1 for i in unique if i['source'] == s)
+        imgs = sum(1 for i in unique if i['source'] == s and i.get('image'))
+        print(f"   {s}: {count} articles, {imgs} with images")
 
 if __name__ == '__main__':
     main()
