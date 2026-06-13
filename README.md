@@ -1,2 +1,2 @@
 # rocket-tech
-RocketTech Daily — Tech News Aggregator
+Rocket News Daily — Tech News Aggregator

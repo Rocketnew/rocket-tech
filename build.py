@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-RocketTech Daily — Build Script
+Rocket News Daily — Build Script
 Fetches tech news from RSS feeds and generates index.html
 """
 
@@ -47,7 +47,7 @@ def fetch_rss(url, timeout=10):
         req = urllib.request.Request(
             url,
             headers={
-                "User-Agent": "RocketTech/1.0 (news aggregator)"
+                "User-Agent": "Rocket News Daily/1.0 (news aggregator)"
             }
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
@@ -205,7 +205,7 @@ def generate_html(all_news):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RocketTech Daily — Latest Tech News</title>
+  <title>Rocket News Daily — Latest Tech News</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
 </head>
@@ -214,7 +214,7 @@ def generate_html(all_news):
 <header>
   <div class="header-inner">
     <div>
-      <div class="logo">RocketTech</div>
+      <div class="logo">Rocket News</div>
       <div class="logo-sub">Daily Tech News</div>
     </div>
     <div class="header-right">
@@ -241,7 +241,7 @@ def generate_html(all_news):
 </main>
 
 <footer>
-  <p>🚀 RocketTech Daily — Built with ❤️ | Data from RSS feeds | Updated daily at 7:00 AM</p>
+  <p>🚀 Rocket News Daily — Built with ❤️ | Data from RSS feeds | Updated daily at 7:00 AM</p>
 </footer>
 
 <script>
@@ -264,7 +264,7 @@ document.querySelectorAll('.cat-btn').forEach(btn => {{
     return html
 
 def main():
-    print("🚀 RocketTech Daily — Build Script")
+    print("🚀 Rocket News Daily — Build Script")
     print(f"   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
 
