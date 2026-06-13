@@ -1,12 +1,14 @@
 {
-  "name": "rocket-tech",
   "version": 2,
   "builds": [
     { "src": "*.html", "use": "@vercel/static" },
-    { "src": "*.css", "use": "@vercel/static" },
-    { "src": "assets/**", "use": "@vercel/static" }
+    { "src": "style.css", "use": "@vercel/static" },
+    { "src": "*.{css,js,jpg,png,svg,ico}", "use": "@vercel/static" }
   ],
   "routes": [
+    { "src": "/style\\.css", "dest": "/style.css" },
+    { "src": "/assets/(.*)", "dest": "/assets/$1" },
+    { "src": "/(.*\\.(css|js|png|jpg|svg|ico|json))$", "dest": "/$1" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
