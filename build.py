@@ -191,7 +191,9 @@ def generate_html(all_news):
       <h2><a href="{link}" target="_blank" rel="noopener">{title}</a></h2>
       <p>{desc}</p>
       <div class="card-footer">
-        <a href="{link}" class="read-more" target="_blank" rel="noopener">Read more →</a>
+        <a href="{link}" class="read-more" target="_blank" rel="noopener">
+          Read more <span class="read-arrow">→</span>
+        </a>
       </div>
     </div>"""
 
@@ -213,19 +215,25 @@ def generate_html(all_news):
 
 <header>
   <div class="header-inner">
-    <div>
-      <div class="logo">Rocket News</div>
-      <div class="logo-sub">Daily Tech News</div>
+    <div class="logo-group">
+      <div class="logo-icon">N</div>
+      <div>
+        <div class="logo-text">Rocket News</div>
+        <div class="logo-sub">Daily Tech News</div>
+      </div>
     </div>
     <div class="header-right">
-      <span class="update-badge">✦ Updated {now}</span>
-      <span>{len(all_news)} stories • {len(sources)} sources</span>
+      <span class="update-badge">
+        <span class="update-dot"></span>
+        Updated {now}
+      </span>
+      <span class="stats-badge">{len(all_news)} stories · {len(sources)} sources</span>
     </div>
   </div>
 </header>
 
 <section class="hero">
-  <h1>Latest in Tech</h1>
+  <h1>Latest in <span>Tech</span></h1>
   <p>Curated tech news from the best sources — updated daily at 7:00 AM.</p>
 </section>
 
@@ -241,7 +249,17 @@ def generate_html(all_news):
 </main>
 
 <footer>
-  <p>🚀 Rocket News Daily — Built with ❤️ | Data from RSS feeds | Updated daily at 7:00 AM</p>
+  <div class="footer-inner">
+    <div class="footer-name">🚀 Rocket News Daily</div>
+    <div class="footer-links">
+      <a href="https://github.com/Rocketnew/rocket-tech" target="_blank" rel="noopener">GitHub</a>
+      <span>·</span>
+      <span>Powered by RSS</span>
+      <span>·</span>
+      <span>Updated daily at 7:00 AM</span>
+    </div>
+    <div class="footer-meta">Data from Hacker News, TechCrunch, The Verge, Dev.to, Ars Technica &amp; Wired</div>
+  </div>
 </footer>
 
 <script>
@@ -255,6 +273,23 @@ document.querySelectorAll('.cat-btn').forEach(btn => {{
       card.style.display = (filter === 'all' || card.dataset.source === filter) ? 'block' : 'none';
     }});
   }});
+}});
+
+// Animate cards on scroll
+const observer = new IntersectionObserver((entries) => {{
+  entries.forEach(entry => {{
+    if (entry.isIntersecting) {{
+      entry.target.style.opacity = '1';
+      entry.target.style.transform = 'translateY(0)';
+    }}
+  }});
+}}, {{ threshold: 0.1, rootMargin: '50px' }});
+
+document.querySelectorAll('.news-card').forEach(card => {{
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(10px)';
+  card.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+  observer.observe(card);
 }});
 </script>
 
