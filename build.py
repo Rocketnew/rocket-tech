@@ -261,7 +261,7 @@ def generate_html(all_news):
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%237c3aed'/><stop offset='100%25' stop-color='%236366f1'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='%230a0a0f'/><text x='50' y='72' font-size='60' text-anchor='middle'>🚀</text></svg>">
   <!-- Monetag -->
   <meta name="monetag" content="f777923a656a6851a964b8cb54790337">
   <link rel="dns-prefetch" href="https://cdn.monetag.com">
@@ -277,9 +277,7 @@ def generate_html(all_news):
   <nav class="nav-inner">
     <div class="nav-left">
       <a href="/" class="nav-logo">
-        <span class="nav-logo-icon">🚀</span>
-        <span class="nav-logo-text">Rocket News</span>
-        <span class="nav-logo-badge">Daily</span>
+        <img src="logo.svg" alt="Rocket News Daily" class="nav-logo-svg" width="220" height="55">
       </a>
     </div>
     <div class="nav-right">

@@ -113,6 +113,15 @@ header {
   align-items: center;
   gap: 10px;
   text-decoration: none;
+  transition: opacity .25s ease;
+}
+.nav-logo:hover {
+  opacity: .8;
+}
+.nav-logo-svg {
+  display: block;
+  height: 36px;
+  width: auto;
 }
 
 .nav-logo-icon { font-size: 26px; line-height: 1; filter: drop-shadow(0 0 8px rgba(124,58,237,.3)); }
