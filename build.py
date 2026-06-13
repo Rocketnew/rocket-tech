@@ -81,8 +81,14 @@ def parse_rss(xml_data, source_name):
                     img = url_attr
 
             desc = re.sub(r'<[^>]+>', '', desc)
-            desc = desc.strip()[:200]
-            if len(desc) >= 200:
+            desc = desc.strip()[:300]
+            # Clean up HN-style descriptions with URLs
+            desc = re.sub(r'Article URL: https?://[^\s]+', '', desc)
+            desc = re.sub(r'Comments URL: https?://[^\s]+', '', desc)
+            desc = re.sub(r'Points: \d+', '', desc)
+            desc = re.sub(r'# Comments: \d+', '', desc)
+            desc = re.sub(r'\s+', ' ', desc).strip()
+            if len(desc) > 200:
                 desc = desc[:desc.rfind(' ')] + '…'
 
             items.append({
@@ -97,8 +103,14 @@ def parse_rss(xml_data, source_name):
             link = link_el.get('href', '') if link_el is not None else ''
             desc_el = entry.find('{http://www.w3.org/2005/Atom}content') or entry.find('{http://www.w3.org/2005/Atom}summary')
             desc = desc_el.text if desc_el is not None else ''
-            desc = re.sub(r'<[^>]+>', '', desc).strip()[:200]
-            if len(desc) >= 200:
+            desc = re.sub(r'<[^>]+>', '', desc).strip()[:300]
+            # Clean up HN-style descriptions with URLs
+            desc = re.sub(r'Article URL: https?://[^\s]+', '', desc)
+            desc = re.sub(r'Comments URL: https?://[^\s]+', '', desc)
+            desc = re.sub(r'Points: \d+', '', desc)
+            desc = re.sub(r'# Comments: \d+', '', desc)
+            desc = re.sub(r'\s+', ' ', desc).strip()
+            if len(desc) > 200:
                 desc = desc[:desc.rfind(' ')] + '…'
             pub_date = entry.findtext('{http://www.w3.org/2005/Atom}published', '') or entry.findtext('{http://www.w3.org/2005/Atom}updated', '')
             author_el = entry.find('{http://www.w3.org/2005/Atom}author')
@@ -153,6 +165,7 @@ def generate_html(all_news):
     # Hero: top 3 articles with images (or without)
     hero_cards_html = ''
     featured = all_news[:3]
+    areas = ['main', 'side1', 'side2']
     for i, item in enumerate(featured):
         src_info = FEEDS.get(item['source'], {})
         color = src_info.get('color', '#666')
@@ -163,17 +176,16 @@ def generate_html(all_news):
         time_ago = format_time(item['published'])
         creator = escape(item['creator']) if item.get('creator') else ''
         img = item.get('image', '')
+        src_class = item['source'].lower().replace(' ', '').replace('.', '')
 
         img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
-        fallback_style = ' style="display:none"' if img else ''
 
         hero_cards_html += f'''
-    <a href="{link}" target="_blank" rel="noopener" class="featured-card" style="--accent:{color}">
-      <div class="featured-bg"{img_style}>
-        <div class="featured-overlay"></div>
-      </div>
+    <a href="{link}" target="_blank" rel="noopener" class="featured-card" data-area="{areas[i]}">
+      <div class="featured-bg"{img_style}></div>
+      <div class="featured-gradient"></div>
       <div class="featured-content">
-        <span class="featured-source"><span class="source-dot" style="background:{color}"></span>{escape(item['source'])}</span>
+        <span class="featured-source"><span class="source-dot" style="background:{color};--dot-color:{color}"></span>{escape(item['source'])}</span>
         <h2>{title}</h2>
         {f'<p>{desc}</p>' if desc else ''}
         <div class="featured-meta">
@@ -197,16 +209,18 @@ def generate_html(all_news):
         source = escape(item['source'])
         creator = escape(item['creator']) if item.get('creator') else ''
         img = item.get('image', '')
+        src_class = source.lower().replace(' ', '').replace('.', '')
         card_img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
-        card_fallback_style = ' style="display:none"' if img else ''
+        fallback_hidden = ' style="display:none"' if img else ''
 
         cards_html += f'''
-    <div class="news-card" data-source="{source.lower().replace(' ', '')}">
+    <div class="news-card source-accent-{src_class}" data-source="{src_class}">
       <div class="card-img-wrapper">
-        <div class="card-img"{card_img_style}>
-          <div class="card-img-fallback" style="display:{'none' if img else 'flex'}">
-            <span class="source-icon" style="background:{color};color:#000">{icon}</span>
-          </div>
+        <div class="card-img"{card_img_style}></div>
+        <div class="card-fallback"{fallback_hidden}>
+          <div class="source-gradient source-gradient-{src_class}"></div>
+          <div class="source-pattern"></div>
+          <span class="source-icon" style="background:{color};color:#000">{icon}</span>
         </div>
         <span class="card-source-tag" style="background:{color};color:#000">{source}</span>
       </div>
@@ -224,7 +238,7 @@ def generate_html(all_news):
     # Source filter buttons
     source_buttons = ''
     for s in sources:
-        s_class = s.lower().replace(' ', '')
+        s_class = s.lower().replace(' ', '').replace('.', '')
         src_info = FEEDS.get(s, {})
         color = src_info.get('color', '#666')
         source_buttons += f'''
