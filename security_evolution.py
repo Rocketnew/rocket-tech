@@ -106,12 +106,24 @@ def main():
     
     # ─── Run the traffic bot ───
     start = time.time()
-    result = subprocess.run(
-        [sys.executable, SCRIPT],
-        capture_output=True, text=True, timeout=180
-    )
+    output = ""
+    bot_ok = False
+    try:
+        result = subprocess.run(
+            [sys.executable, SCRIPT],
+            capture_output=True, text=True, timeout=100
+        )
+        output = result.stdout
+        bot_ok = True
+    except subprocess.TimeoutExpired as te:
+        output = te.stdout or ""
+        if isinstance(output, bytes): output = output.decode()
+        elapsed = 100
+        output += "\n⚠️ Bot timed out"
+    except Exception as e:
+        output = f"\n⚠️ Bot error: {str(e)[:100]}"
+    
     elapsed = round(time.time() - start, 1)
-    output = result.stdout
     
     # ─── Parse results ───
     score = 0
@@ -122,12 +134,8 @@ def main():
     
     clicks = 0
     for line in output.split('\n'):
-        if 'click' in line.lower() and '✅' in line:
-            try:
-                for p in line.split(','):
-                    if 'click' in p:
-                        clicks = int(p.split(':')[-1].strip().split()[0])
-            except: pass
+        if 'click' in line.lower() and '🖱️' in line:
+            clicks += 1
     
     # Parse proxy info
     proxy_str = "direct"
@@ -141,7 +149,11 @@ def main():
             except: pass
     
     # Track proxy success
-    proxy_success = '❌' not in output.split('--- Visit')[1] if '--- Visit' in output and proxy_str != "direct" else True
+    proxy_success = True
+    if proxy_str != "direct" and output:
+        visit_sections = output.split('--- Visit')
+        if len(visit_sections) > 1:
+            proxy_success = '❌' not in visit_sections[1]
     
     pstats["total_attempts"] += 1
     if not proxy_success:

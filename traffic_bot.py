@@ -402,17 +402,18 @@ def adaptive_cycle():
         pool_size = len(_proxy_pool) if _proxy_pool else 0
         print(f"  🔌 Direct connection ({pool_size} proxies in pool, none passed health check)")
 
-    import tempfile
-    chrome_dir = tempfile.mkdtemp(prefix="chrome_")
-    user_data = f"--user-data-dir={chrome_dir}"
-    debug_port = f"--remote-debugging-port={random.randint(9222, 9555)}"
+    chrome_bin = "/home/ubuntu/chromium/chrome-linux64/chrome"
+    
+    import tempfile, uuid
+    chrome_dir = tempfile.mkdtemp(prefix=f"cr_{uuid.uuid4().hex[:8]}_")
     
     vp = random.choice(VIEWPORTS)
     opts = Options()
+    opts.binary_location = chrome_bin
     opts.add_argument("--no-sandbox")
-    opts.add_argument(user_data)
-    opts.add_argument(debug_port)
+    opts.add_argument(f"--user-data-dir={chrome_dir}")
     opts.add_argument("--disable-dev-shm-usage")
+    opts.add_argument("--single-process")
     opts.add_argument("--disable-gpu")
     opts.add_argument("--headless=new")
     opts.add_argument("--disable-blink-features=AutomationControlled")
