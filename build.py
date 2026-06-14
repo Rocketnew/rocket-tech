@@ -393,6 +393,8 @@ const Monetag = {{
   init() {{
     this._load('//cdn.monetag.com/v/2025.js', 'mt-main');
     this._load('//cdn.monetag.com/p/2025.js', 'mt-push');
+    // Note: CDN domains above may be deprecated
+    // Popunder from quge5.com works independently
   }},
   _load(src, id) {{
     if (document.getElementById(id)) return;
