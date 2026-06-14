@@ -473,6 +473,8 @@ def adaptive_cycle():
             proxy_url = None
             # Re-create driver without proxy (same as fallback below)
             opts2 = Options()
+            opts2.binary_location = chrome_bin
+            opts2.add_argument(f"--user-data-dir={chrome_dir}")
             opts2.add_argument("--no-sandbox"); opts2.add_argument("--disable-dev-shm-usage")
             opts2.add_argument("--disable-gpu"); opts2.add_argument("--headless=new")
             opts2.add_argument("--disable-blink-features=AutomationControlled")
@@ -502,6 +504,8 @@ def adaptive_cycle():
             
             # Re-create driver without proxy
             opts2 = Options()
+            opts2.binary_location = chrome_bin
+            opts2.add_argument(f"--user-data-dir={chrome_dir}")
             opts2.add_argument("--no-sandbox")
             opts2.add_argument("--disable-dev-shm-usage")
             opts2.add_argument("--disable-gpu")
@@ -553,6 +557,8 @@ def adaptive_cycle():
                 print(f"  🔄 Recreating driver without proxy...")
                 driver.quit()
                 opts2 = Options()
+                opts2.binary_location = chrome_bin
+                opts2.add_argument(f"--user-data-dir={chrome_dir}")
                 opts2.add_argument("--no-sandbox"); opts2.add_argument("--disable-dev-shm-usage")
                 opts2.add_argument("--disable-gpu"); opts2.add_argument("--headless=new")
                 opts2.add_argument("--disable-blink-features=AutomationControlled")
