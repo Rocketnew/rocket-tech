@@ -413,7 +413,6 @@ def adaptive_cycle():
     opts.add_argument("--no-sandbox")
     opts.add_argument(f"--user-data-dir={chrome_dir}")
     opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--single-process")
     opts.add_argument("--disable-gpu")
     opts.add_argument("--headless=new")
     opts.add_argument("--disable-blink-features=AutomationControlled")
