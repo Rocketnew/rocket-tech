@@ -54,9 +54,17 @@ def get_proxy():
         available = _proxy_pool
     
     # Prefer HTTP/HTTPS proxies (SOCKS has SSL issues in headless Chrome)
-    http_proxies = [p for p in available if p['protocol'] in ('http', 'https')]
-    if http_proxies and random.random() < 0.7:
+    # Skip port 80 — most free proxies on port 80 don't support HTTPS tunneling
+    http_proxies = [p for p in available if p['protocol'] in ('http', 'https')
+                    and p['port'] not in (80, 8081, 9999, 10000)]
+    if http_proxies and random.random() < 0.75:
         return random.choice(http_proxies)
+    
+    # Try SOCKS5 with SSL fallback
+    socks_ok = [p for p in available if p['protocol'] == 'socks5'
+                and f"{p['ip']}:{p['port']}" not in _bad_proxies]
+    if socks_ok:
+        return random.choice(socks_ok)
     
     return random.choice(available)
 
@@ -289,7 +297,7 @@ def run_visit(driver, num, mark_bad_cb=None):
     r = {"visit": num, "click": 0, "ok": False, "proxy_err": False}
     try:
         driver.get(SITE)
-        time.sleep(random.uniform(2, 5))
+        time.sleep(random.uniform(0.5, 2))
         t = driver.title
         print(f"    📄 {t[:50]}")
         r["ok"] = True
@@ -299,7 +307,7 @@ def run_visit(driver, num, mark_bad_cb=None):
 
         # Click article
         links = driver.find_elements("css selector", "a.card-link, .news-card a, .hero-card a, .read-more, .card a")
-        if links and random.random() < 0.4:
+        if links and random.random() < 0.6:
             try:
                 link = random.choice(links)
                 link.location_once_scrolled_into_view
@@ -307,12 +315,12 @@ def run_visit(driver, num, mark_bad_cb=None):
                 link.click()
                 r["click"] = 1
                 print(f"    🖱️ Clicked")
-                time.sleep(random.uniform(2, 6))
+                time.sleep(random.uniform(0.5, 2))
                 if random.random() < 0.3: human_scroll(driver)
-                if random.random() < 0.2: driver.back(); time.sleep(random.uniform(1, 2))
+                if random.random() < 0.2: driver.back(); time.sleep(random.uniform(0.3, 1))
             except: pass
 
-        time.sleep(random.uniform(1, 3))
+        time.sleep(random.uniform(0.3, 1.5))
     except Exception as e:
         err_msg = str(e)
         # Proxy errors = clean message, no stacktrace
@@ -401,13 +409,13 @@ def adaptive_cycle():
             "platform": fp["platform"],
         })
 
-        # Navigate to blank page first to warm up
+        # Warm up driver
         driver.get("about:blank")
-        time.sleep(1)
+        time.sleep(0.3)
 
-        # Pre-test stealth
+        # Initial page load
         driver.get(SITE)
-        time.sleep(2)
+        time.sleep(1)
         
     except Exception as e:
         # Proxy failed — mark bad and fall back to direct
@@ -459,7 +467,7 @@ def adaptive_cycle():
         
         score_data = stealth_score(driver)
 
-        visits = random.randint(1, 2)
+        visits = random.randint(3, 6)
         print(f"  📊 {visits} visit(s)")
         clicks = 0
 
@@ -499,7 +507,7 @@ def adaptive_cycle():
                 clicks += result.get("click", 0)
             
             if i < visits - 1:
-                delay = random.randint(5, 15)
+                delay = random.randint(2, 8)
                 print(f"  ⏳ {delay}s...")
                 time.sleep(delay)
 
@@ -515,9 +523,9 @@ def adaptive_cycle():
         try: driver.quit(); print(f"  🖥️ Closed")
         except: pass
 
-
 def main():
-    print(f"\n{'='*50}")
+    """Entry point"""
+    print(f"{'='*50}")
     print(f"🚀 ROCKET BOT v3 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*50}")
     adaptive_cycle()
