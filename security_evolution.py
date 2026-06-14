@@ -177,18 +177,19 @@ def main():
     
     stats = compute_stats(evo)
     
-    # ─── Proxy refresh ───
+    # ─── Proxy refresh (background — won't block main flow) ───
     proxy_refreshed = False
     pool_count, pool_protos = get_proxy_pool_info()
     if evo["total_runs"] % PROXY_REFRESH_INTERVAL == 0:
         try:
-            subprocess.run(
+            subprocess.Popen(
                 [sys.executable, PROXY_SCRIPT],
-                capture_output=True, text=True, timeout=60
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
             proxy_refreshed = True
-            pool_count, pool_protos = get_proxy_pool_info()
         except: pass
+    # Re-read pool (might still be old, but next cycle will pick up new)
+    pool_count, pool_protos = get_proxy_pool_info()
     
     proxy_runs = sum(1 for r in evo["runs"] if r.get("proxy", "direct") != "direct")
     proxy_fail_pct = round(pstats["total_failures"] / max(pstats["total_attempts"], 1) * 100)

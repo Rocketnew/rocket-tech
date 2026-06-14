@@ -357,7 +357,7 @@ def run_visit(driver, num, mark_bad_cb=None):
     except Exception as e:
         err_msg = str(e)
         # Proxy errors = clean message, no stacktrace
-        if 'ERR_' in err_msg or 'proxy' in err_msg.lower() or 'timed out' in err_msg.lower():
+        if 'ERR_' in err_msg or 'proxy' in err_msg.lower() or 'timed out' in err_msg.lower() or 'tab crashed' in err_msg.lower() or 'invalid session' in err_msg.lower():
             err_short = err_msg[:100].replace('\n', ' ')
             print(f"    ❌ Connection: {err_short}")
             r["proxy_err"] = True
@@ -465,7 +465,7 @@ def adaptive_cycle():
                                'name not resolved', 'dns']
         
         # Chrome crashed — restart without proxy
-        if 'invalid session id' in err_str or 'browser has closed' in err_str or 'cannot connect to chrome' in err_str:
+        if 'invalid session id' in err_str or 'browser has closed' in err_str or 'cannot connect to chrome' in err_str or 'tab crashed' in err_str or 'session deleted' in err_str:
             print(f"  💥 Chrome crashed (likely due to proxy), restarting without proxy...")
             try: driver.quit()
             except: pass
@@ -539,7 +539,7 @@ def adaptive_cycle():
         
         score_data = stealth_score(driver)
 
-        visits = random.randint(3, 5)
+        visits = random.randint(2, 4)
         print(f"  📊 {visits} visit(s)")
         clicks = 0
 
