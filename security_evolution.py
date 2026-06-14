@@ -89,7 +89,7 @@ def main():
     start = time.time()
     result = subprocess.run(
         [sys.executable, SCRIPT],
-        capture_output=True, text=True, timeout=120
+        capture_output=True, text=True, timeout=180
     )
     elapsed = round(time.time() - start, 1)
     output = result.stdout

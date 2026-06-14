@@ -37,7 +37,7 @@ def load_proxies():
     _proxy_pool = []
     return _proxy_pool
 
-def test_proxy(proxy, timeout=2):
+def test_proxy(proxy, timeout=1):
     '''Quick socket test — is the proxy actually reachable?'''
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -69,7 +69,7 @@ def get_proxy():
     http_candidates = [p for p in available if p['protocol'] in ('http', 'https')]
     random.shuffle(http_candidates)
     
-    for proxy in http_candidates[:15]:  # Test up to 15 HTTP proxies
+    for proxy in http_candidates[:8]:  # Test up to 8 HTTP proxies
         if test_proxy(proxy):
             return proxy
         # Quick fail — add to bad so we don't retry this run
@@ -79,13 +79,13 @@ def get_proxy():
     socks_candidates = [p for p in available if p['protocol'] == 'socks5']
     random.shuffle(socks_candidates)
     
-    for proxy in socks_candidates[:8]:
+    for proxy in socks_candidates[:4]:
         if test_proxy(proxy):
             return proxy
         mark_proxy_bad(proxy, quiet=True)
     
     # Last resort: any remaining untested proxy
-    for proxy in available[:5]:
+    for proxy in available[:3]:
         if test_proxy(proxy):
             return proxy
     
