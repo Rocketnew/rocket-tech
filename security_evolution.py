@@ -5,7 +5,7 @@ Rocket Bot Security Evolution Engine v2
 - Telegram-friendly compact output
 """
 
-import json, time, random, subprocess, sys, os
+import json, time, random, subprocess, sys, os, signal
 from datetime import datetime
 from pathlib import Path
 
@@ -18,6 +18,22 @@ SCRIPT = os.path.expanduser("~/rocket-tech/traffic_bot.py")
 PROXY_SCRIPT = os.path.expanduser("~/rocket-tech/proxy_scraper.py")
 
 PROXY_REFRESH_INTERVAL = 5  # every 5th cycle (25 min)
+
+
+def cleanup_chrome():
+    """Kill leftover Chrome processes before starting fresh"""
+    try:
+        subprocess.run(
+            ["killall", "-q", "chrome", "chromedriver"],
+            capture_output=True, timeout=5
+        )
+        subprocess.run(
+            ["killall", "-q", "chromedriver"],
+            capture_output=True, timeout=5
+        )
+    except:
+        pass
+    time.sleep(2)
 
 
 def load_evolution():
@@ -84,6 +100,9 @@ def compute_stats(data):
 def main():
     evo = load_evolution()
     pstats = load_proxy_stats()
+    
+    # Clean up leftover Chrome processes before each run
+    cleanup_chrome()
     
     # ─── Run the traffic bot ───
     start = time.time()

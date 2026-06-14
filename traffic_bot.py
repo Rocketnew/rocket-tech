@@ -8,7 +8,7 @@ Rocket News Adaptive Stealth Bot v3 — 2026
 - Persistent fingerprint profile
 """
 
-import sys, os, random, time, json, warnings, socket
+import sys, os, random, time, json, warnings, socket, subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -329,20 +329,29 @@ def run_visit(driver, num, mark_bad_cb=None):
         human_scroll(driver)
         print(f"    📜 Scrolled")
 
-        # Click article
-        links = driver.find_elements("css selector", "a.card-link, .news-card a, .hero-card a, .read-more, .card a")
-        if links and random.random() < 0.6:
-            try:
-                link = random.choice(links)
-                link.location_once_scrolled_into_view
-                time.sleep(random.uniform(0.2, 0.5))
-                link.click()
-                r["click"] = 1
-                print(f"    🖱️ Clicked")
-                time.sleep(random.uniform(0.5, 2))
-                if random.random() < 0.3: human_scroll(driver)
-                if random.random() < 0.2: driver.back(); time.sleep(random.uniform(0.3, 1))
+        # Click article - JS-based (works in all modes, no CSS selector issues)
+        clicked_url = driver.execute_script("""
+            var links = Array.from(document.querySelectorAll('a[href]'));
+            var valid = links.filter(function(a) {
+                return a.offsetParent !== null 
+                    && a.href.indexOf('//') > 0 
+                    && a.className.indexOf('nav-logo') === -1
+                    && a.href.indexOf(window.location.hostname) === -1;
+            });
+            if (valid.length === 0) return null;
+            var pick = valid[Math.floor(Math.random() * valid.length)];
+            try { pick.click(); return pick.href; } catch(e) { return null; }
+        """)
+        if clicked_url:
+            r["click"] = 1
+            print(f"    🖱️ Clicked: {clicked_url[:60]}")
+            # Stay on article page briefly, then go back
+            time.sleep(random.uniform(0.8, 2.5))
+            try: driver.back()
             except: pass
+            time.sleep(0.5)
+        else:
+            print(f"    📎 No valid links to click")
 
         time.sleep(random.uniform(0.3, 1.5))
     except Exception as e:
@@ -393,9 +402,16 @@ def adaptive_cycle():
         pool_size = len(_proxy_pool) if _proxy_pool else 0
         print(f"  🔌 Direct connection ({pool_size} proxies in pool, none passed health check)")
 
+    import tempfile
+    chrome_dir = tempfile.mkdtemp(prefix="chrome_")
+    user_data = f"--user-data-dir={chrome_dir}"
+    debug_port = f"--remote-debugging-port={random.randint(9222, 9555)}"
+    
     vp = random.choice(VIEWPORTS)
     opts = Options()
     opts.add_argument("--no-sandbox")
+    opts.add_argument(user_data)
+    opts.add_argument(debug_port)
     opts.add_argument("--disable-dev-shm-usage")
     opts.add_argument("--disable-gpu")
     opts.add_argument("--headless=new")
@@ -443,12 +459,43 @@ def adaptive_cycle():
         time.sleep(1)
         
     except Exception as e:
-        # Proxy failed — mark bad and fall back to direct
         err_str = str(e).lower()
         proxy_fail_keywords = ['err_proxy', 'err_tunnel', 'connection refused', 
                                'timed out', 'socket', 'proxy', 'connection reset',
                                'name not resolved', 'dns']
-        if proxy and any(k in err_str for k in proxy_fail_keywords):
+        
+        # Chrome crashed — restart without proxy
+        if 'invalid session id' in err_str or 'browser has closed' in err_str or 'cannot connect to chrome' in err_str:
+            print(f"  💥 Chrome crashed (likely due to proxy), restarting without proxy...")
+            try: driver.quit()
+            except: pass
+            proxy = None
+            proxy_url = None
+            # Re-create driver without proxy (same as fallback below)
+            opts2 = Options()
+            opts2.add_argument("--no-sandbox"); opts2.add_argument("--disable-dev-shm-usage")
+            opts2.add_argument("--disable-gpu"); opts2.add_argument("--headless=new")
+            opts2.add_argument("--disable-blink-features=AutomationControlled")
+            opts2.add_argument("--disable-popup-blocking"); opts2.add_argument("--disable-notifications")
+            opts2.add_argument("--disable-background-networking")
+            opts2.add_argument("--disable-background-timer-throttling")
+            opts2.add_argument("--disable-extensions"); opts2.add_argument("--force-color-profile=srgb")
+            opts2.add_argument("--no-first-run"); opts2.add_argument("--mute-audio")
+            opts2.add_argument(f"--window-size={vp[0]},{vp[1]}")
+            opts2.add_argument(f"--user-agent={fp['ua']}")
+            opts2.add_argument("--ignore-certificate-errors")
+            opts2.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+            opts2.add_experimental_option("useAutomationExtension", False)
+            driver = webdriver.Chrome(service=Service(CHROMEDRIVER), options=opts2)
+            driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
+            driver.execute_cdp_cmd("Emulation.setUserAgentOverride", {"userAgent": fp["ua"], "platform": fp["platform"]})
+            driver.get("about:blank")
+            time.sleep(0.3)
+            driver.get(SITE)
+            time.sleep(1)
+        
+        # Proxy failed — mark bad and fall back to direct
+        elif proxy and any(k in err_str for k in proxy_fail_keywords):
             mark_proxy_bad(proxy)
             print(f"  🔄 Proxy failed ({str(e)[:60]}), falling back to direct")
             driver.quit()
@@ -492,7 +539,7 @@ def adaptive_cycle():
         
         score_data = stealth_score(driver)
 
-        visits = random.randint(3, 6)
+        visits = random.randint(3, 5)
         print(f"  📊 {visits} visit(s)")
         clicks = 0
 
@@ -550,6 +597,11 @@ def adaptive_cycle():
 
 def main():
     """Entry point"""
+    # Kill leftover Chrome processes
+    try:
+        subprocess.run(["killall", "-q", "chrome"], capture_output=True, timeout=5)
+    except: pass
+    
     print(f"{'='*50}")
     print(f"🚀 ROCKET BOT v3 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*50}")
