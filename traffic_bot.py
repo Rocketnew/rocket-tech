@@ -284,9 +284,9 @@ def human_scroll(driver):
     except: pass
 
 
-def run_visit(driver, num):
+def run_visit(driver, num, mark_bad_cb=None):
     """Single visitor session"""
-    r = {"visit": num, "click": 0, "ok": False}
+    r = {"visit": num, "click": 0, "ok": False, "proxy_err": False}
     try:
         driver.get(SITE)
         time.sleep(random.uniform(2, 5))
@@ -314,7 +314,15 @@ def run_visit(driver, num):
 
         time.sleep(random.uniform(1, 3))
     except Exception as e:
-        print(f"    ❌ {e}")
+        err_msg = str(e)
+        # Proxy errors = clean message, no stacktrace
+        if 'ERR_' in err_msg or 'proxy' in err_msg.lower() or 'timed out' in err_msg.lower():
+            err_short = err_msg[:100].replace('\n', ' ')
+            print(f"    ❌ Connection: {err_short}")
+            r["proxy_err"] = True
+            if mark_bad_cb: mark_bad_cb()
+        else:
+            print(f"    ❌ {err_msg[:150]}")
     return r
 
 
@@ -402,11 +410,14 @@ def adaptive_cycle():
         time.sleep(2)
         
     except Exception as e:
-        # Proxy probably failed — mark bad and fall back to direct
-        err_str = str(e)
-        if proxy and ('ERR_PROXY_CONNECTION_FAILED' in err_str or 'timed out' in err_str.lower() or 'socket' in err_str.lower()):
+        # Proxy failed — mark bad and fall back to direct
+        err_str = str(e).lower()
+        proxy_fail_keywords = ['err_proxy', 'err_tunnel', 'connection refused', 
+                               'timed out', 'socket', 'proxy', 'connection reset',
+                               'name not resolved', 'dns']
+        if proxy and any(k in err_str for k in proxy_fail_keywords):
             mark_proxy_bad(proxy)
-            print(f"  🔄 Proxy failed, falling back to direct connection")
+            print(f"  🔄 Proxy failed ({str(e)[:60]}), falling back to direct")
             driver.quit()
             
             # Re-create driver without proxy
@@ -454,8 +465,39 @@ def adaptive_cycle():
 
         for i in range(visits):
             print(f"\n  --- Visit {i+1}/{visits} ---")
-            result = run_visit(driver, i + 1)
+            result = run_visit(driver, i + 1, mark_bad_cb=lambda: mark_proxy_bad(proxy) if proxy else None)
             clicks += result["click"]
+            
+            # Proxy failed — recreate driver without proxy and retry
+            if result.get("proxy_err") and proxy:
+                print(f"  🔄 Recreating driver without proxy...")
+                driver.quit()
+                opts2 = Options()
+                opts2.add_argument("--no-sandbox"); opts2.add_argument("--disable-dev-shm-usage")
+                opts2.add_argument("--disable-gpu"); opts2.add_argument("--headless=new")
+                opts2.add_argument("--disable-blink-features=AutomationControlled")
+                opts2.add_argument("--disable-popup-blocking"); opts2.add_argument("--disable-notifications")
+                opts2.add_argument("--disable-background-networking")
+                opts2.add_argument("--disable-background-timer-throttling")
+                opts2.add_argument("--disable-extensions"); opts2.add_argument("--force-color-profile=srgb")
+                opts2.add_argument("--no-first-run"); opts2.add_argument("--mute-audio")
+                opts2.add_argument(f"--window-size={vp[0]},{vp[1]}")
+                opts2.add_argument(f"--user-agent={fp['ua']}")
+                opts2.add_argument("--ignore-certificate-errors")
+                opts2.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+                opts2.add_experimental_option("useAutomationExtension", False)
+                driver = webdriver.Chrome(service=Service(CHROMEDRIVER), options=opts2)
+                driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
+                driver.execute_cdp_cmd("Emulation.setUserAgentOverride", {"userAgent": fp["ua"], "platform": fp["platform"]})
+                proxy = None
+                # Retry this visit without proxy
+                re_patch = build_stealth_js(fp)
+                driver.execute_script(re_patch)
+                print(f"  🔄 Retrying visit {i+1} without proxy...")
+                time.sleep(1)
+                result = run_visit(driver, i + 1)
+                clicks += result.get("click", 0)
+            
             if i < visits - 1:
                 delay = random.randint(5, 15)
                 print(f"  ⏳ {delay}s...")
