@@ -597,13 +597,22 @@ def adaptive_cycle():
 
 def main():
     """Entry point"""
-    # Kill leftover Chrome processes
+    # Clean up stale Chrome temp dirs
+    import shutil
+    from pathlib import Path as _Path
+    for d in _Path("/tmp").glob("org.chromium.Chromium.scoped_dir.*"):
+        try: shutil.rmtree(d)
+        except: pass
+    for d in _Path("/tmp").glob(".com.google.Chrome.*"):
+        try: shutil.rmtree(d)
+        except: pass
+    
     try:
         subprocess.run(["killall", "-q", "chrome"], capture_output=True, timeout=5)
     except: pass
     
     print(f"{'='*50}")
-    print(f"🚀 ROCKET BOT v3 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🚀 ROCKET BOT v3")
     print(f"{'='*50}")
     adaptive_cycle()
     print(f"{'='*50}\n")

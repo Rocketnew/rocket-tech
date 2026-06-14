@@ -21,18 +21,19 @@ PROXY_REFRESH_INTERVAL = 5  # every 5th cycle (25 min)
 
 
 def cleanup_chrome():
-    """Kill leftover Chrome processes before starting fresh"""
-    try:
-        subprocess.run(
-            ["killall", "-q", "chrome", "chromedriver"],
-            capture_output=True, timeout=5
-        )
-        subprocess.run(
-            ["killall", "-q", "chromedriver"],
-            capture_output=True, timeout=5
-        )
-    except:
-        pass
+    """Kill leftover Chrome processes and clean stale temp dirs"""
+    import shutil
+    for sig in [9, 15]:
+        try:
+            subprocess.run(["killall", "-q", "chrome"], capture_output=True, timeout=5)
+            subprocess.run(["killall", "-q", "chromedriver"], capture_output=True, timeout=5)
+        except: pass
+    for d in Path("/tmp").glob("org.chromium.Chromium.scoped_dir.*"):
+        try: shutil.rmtree(d)
+        except: pass
+    for d in Path("/tmp").glob(".com.google.Chrome.*"):
+        try: shutil.rmtree(d)
+        except: pass
     time.sleep(2)
 
 
