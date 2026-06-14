@@ -19,6 +19,53 @@ SITE = "https://rocketnewsdaily.vercel.app"
 PROFILE_DIR = Path.home() / ".rocket-traffic-profile"
 PROFILE_DIR.mkdir(exist_ok=True)
 FINGERPRINT_FILE = PROFILE_DIR / "fingerprint.json"
+PROXIES_FILE = PROFILE_DIR / "proxies.json"
+
+# Proxy management
+_proxy_pool = None
+_bad_proxies = set()  # temporarily bad proxies (timeout after N mins)
+
+def load_proxies():
+    '''Load USA proxy pool from file'''
+    global _proxy_pool
+    if PROXIES_FILE.exists():
+        try:
+            data = json.loads(PROXIES_FILE.read_text())
+            _proxy_pool = data.get('proxies', [])
+            print(f'  🌐 Proxy pool: {len(_proxy_pool)} USA proxies loaded')
+            return _proxy_pool
+        except: pass
+    _proxy_pool = []
+    print(f'  ⚠️ No proxy file found at {PROXIES_FILE}')
+    return _proxy_pool
+
+def get_proxy():
+    '''Pick a random working proxy — prefer HTTP/HTTPS for SSL compatibility'''
+    if _proxy_pool is None:
+        load_proxies()
+    if not _proxy_pool:
+        return None
+    
+    available = [p for p in _proxy_pool 
+                 if f"{p['ip']}:{p['port']}" not in _bad_proxies]
+    
+    if not available:
+        _bad_proxies.clear()
+        available = _proxy_pool
+    
+    # Prefer HTTP/HTTPS proxies (SOCKS has SSL issues in headless Chrome)
+    http_proxies = [p for p in available if p['protocol'] in ('http', 'https')]
+    if http_proxies and random.random() < 0.7:
+        return random.choice(http_proxies)
+    
+    return random.choice(available)
+
+def mark_proxy_bad(proxy):
+    '''Mark a proxy as temporarily unusable'''
+    if proxy:
+        key = f"{proxy['ip']}:{proxy['port']}"
+        _bad_proxies.add(key)
+        print(f'  ⛔ Marked proxy {key} as bad ({len(_bad_proxies)} bad total)')
 
 FINGERPRINTS = [
     {
@@ -296,6 +343,15 @@ def adaptive_cycle():
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.chrome.service import Service
 
+    # 🔌 Load proxy for this session
+    proxy = get_proxy()
+    if proxy:
+        proxy_url = f"{proxy['protocol']}://{proxy['ip']}:{proxy['port']}"
+        print(f"  🔌 Using proxy: {proxy['protocol'].upper()} {proxy['ip']}:{proxy['port']}")
+    else:
+        proxy_url = None
+        print(f"  🔌 Direct connection (no proxy)")
+
     vp = random.choice(VIEWPORTS)
     opts = Options()
     opts.add_argument("--no-sandbox")
@@ -313,14 +369,22 @@ def adaptive_cycle():
     opts.add_argument("--mute-audio")
     opts.add_argument(f"--window-size={vp[0]},{vp[1]}")
     opts.add_argument(f"--user-agent={fp['ua']}")
+    
+    if proxy_url:
+        opts.add_argument(f"--proxy-server={proxy_url}")
+        opts.add_argument("--proxy-bypass-list=<-loopback>")
+        opts.add_argument("--ignore-certificate-errors")
+    
     opts.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
     opts.add_experimental_option("useAutomationExtension", False)
 
     driver = webdriver.Chrome(service=Service(CHROMEDRIVER), options=opts)
 
+    # Build stealth JS once (used in both try and fallback)
+    stealth_js = build_stealth_js(fp)
+    
     try:
         # Inject stealth patches BEFORE any navigation (CDP approach)
-        stealth_js = build_stealth_js(fp)
         driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
 
         # Apply platform override
@@ -337,7 +401,48 @@ def adaptive_cycle():
         driver.get(SITE)
         time.sleep(2)
         
-        # Post-navigation stealth re-patch (site scripts may have overridden)
+    except Exception as e:
+        # Proxy probably failed — mark bad and fall back to direct
+        err_str = str(e)
+        if proxy and ('ERR_PROXY_CONNECTION_FAILED' in err_str or 'timed out' in err_str.lower() or 'socket' in err_str.lower()):
+            mark_proxy_bad(proxy)
+            print(f"  🔄 Proxy failed, falling back to direct connection")
+            driver.quit()
+            
+            # Re-create driver without proxy
+            opts2 = Options()
+            opts2.add_argument("--no-sandbox")
+            opts2.add_argument("--disable-dev-shm-usage")
+            opts2.add_argument("--disable-gpu")
+            opts2.add_argument("--headless=new")
+            opts2.add_argument("--disable-blink-features=AutomationControlled")
+            opts2.add_argument("--disable-popup-blocking")
+            opts2.add_argument("--disable-notifications")
+            opts2.add_argument("--disable-background-networking")
+            opts2.add_argument("--disable-background-timer-throttling")
+            opts2.add_argument("--disable-extensions")
+            opts2.add_argument("--force-color-profile=srgb")
+            opts2.add_argument("--no-first-run")
+            opts2.add_argument("--mute-audio")
+            opts2.add_argument(f"--window-size={vp[0]},{vp[1]}")
+            opts2.add_argument(f"--user-agent={fp['ua']}")
+            opts2.add_argument("--ignore-certificate-errors")
+            opts2.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+            opts2.add_experimental_option("useAutomationExtension", False)
+            driver = webdriver.Chrome(service=Service(CHROMEDRIVER), options=opts2)
+            
+            # Re-apply stealth
+            driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
+            driver.execute_cdp_cmd("Emulation.setUserAgentOverride", {"userAgent": fp["ua"], "platform": fp["platform"]})
+            driver.get("about:blank")
+            time.sleep(1)
+            driver.get(SITE)
+            time.sleep(2)
+            proxy = None  # Don't mark bad again
+        else:
+            raise
+    
+    try:
         re_patch = build_stealth_js(fp)
         driver.execute_script(re_patch)
         

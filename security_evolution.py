@@ -12,6 +12,10 @@ PROFILE_DIR = Path.home() / ".rocket-traffic-profile"
 PROFILE_DIR.mkdir(exist_ok=True)
 EVOLUTION_LOG = PROFILE_DIR / "evolution.json"
 SCRIPT = os.path.expanduser("~/rocket-tech/traffic_bot.py")
+PROXY_SCRIPT = os.path.expanduser("~/rocket-tech/proxy_scraper.py")
+
+# Proxy refresh: every 5th cycle (25 min)
+PROXY_REFRESH_INTERVAL = 5
 
 
 def load_evolution():
@@ -84,12 +88,21 @@ def main():
                         clicks = int(p.split(':')[-1].strip().split()[0])
             except: pass
     
+    # Parse proxy usage from output
+    used_proxy = None
+    for line in result.stdout.split('\n'):
+        if 'Using proxy:' in line:
+            try:
+                used_proxy = line.split('proxy:')[1].strip()
+            except: pass
+    
     # Record this run
     run = {
         "time": datetime.now().isoformat(),
         "score": score,
         "elapsed": round(elapsed, 1),
         "clicks": clicks,
+        "proxy": used_proxy or "direct",
     }
     evo["runs"].append(run)
     evo["total_runs"] += 1
@@ -107,6 +120,26 @@ def main():
     
     # Compute and log stats
     stats = compute_stats(evo)
+    
+    # Check if we should refresh proxies (every 5th cycle)
+    proxy_refreshed = False
+    if evo["total_runs"] % PROXY_REFRESH_INTERVAL == 0:
+        print(f"\n📡 Refreshing proxy list...")
+        try:
+            proxy_result = subprocess.run(
+                [sys.executable, PROXY_SCRIPT],
+                capture_output=True, text=True, timeout=60
+            )
+            print(proxy_result.stdout.strip())
+            proxy_refreshed = True
+        except subprocess.TimeoutExpired:
+            print(f"  ⏰ Proxy refresh timed out")
+        except Exception as e:
+            print(f"  ❌ Proxy refresh failed: {e}")
+    
+    # Count proxy vs direct runs
+    proxy_runs = sum(1 for r in evo["runs"] if r.get("proxy", "direct") != "direct")
+    
     print(f"\n{'='*45}")
     print(f"📊 EVOLUTION REPORT")
     print(f"   Total runs: {stats['total_runs']}")
@@ -115,7 +148,15 @@ def main():
     print(f"   Avg score: {stats['avg_score']}/10")
     print(f"   Recent avg: {stats['avg_recent_score']}/10 {stats['score_trend']}")
     print(f"   Avg runtime: {stats['avg_time']}s")
+    print(f"   Proxy runs: {proxy_runs}/{stats['total_runs']}")
     print(f"   Last run: {stats['last_run']}")
+    if proxy_refreshed:
+        try:
+            pf = PROFILE_DIR / "proxies.json"
+            if pf.exists():
+                data = json.loads(pf.read_text())
+                print(f"   Proxy pool: {data['count']} USA proxies")
+        except: pass
     print(f"{'='*45}")
     
     save_evolution(evo)
