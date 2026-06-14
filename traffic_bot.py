@@ -8,7 +8,7 @@ Rocket News Adaptive Stealth Bot v3 — 2026
 - Persistent fingerprint profile
 """
 
-import sys, os, random, time, json, warnings
+import sys, os, random, time, json, warnings, socket
 from datetime import datetime
 from pathlib import Path
 
@@ -32,15 +32,24 @@ def load_proxies():
         try:
             data = json.loads(PROXIES_FILE.read_text())
             _proxy_pool = data.get('proxies', [])
-            print(f'  🌐 Proxy pool: {len(_proxy_pool)} USA proxies loaded')
             return _proxy_pool
         except: pass
     _proxy_pool = []
-    print(f'  ⚠️ No proxy file found at {PROXIES_FILE}')
     return _proxy_pool
 
+def test_proxy(proxy, timeout=2):
+    '''Quick socket test — is the proxy actually reachable?'''
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(timeout)
+        s.connect((proxy['ip'], int(proxy['port'])))
+        s.close()
+        return True
+    except:
+        return False
+
 def get_proxy():
-    '''Pick a random working proxy — prefer HTTP/HTTPS for SSL compatibility'''
+    '''Pick a random working proxy — tests before returning'''
     if _proxy_pool is None:
         load_proxies()
     if not _proxy_pool:
@@ -53,25 +62,42 @@ def get_proxy():
         _bad_proxies.clear()
         available = _proxy_pool
     
-    # Prefer HTTP/HTTPS proxies (SOCKS has SSL issues in headless Chrome)
-    http_proxies = [p for p in available if p['protocol'] in ('http', 'https')]
-    if http_proxies and random.random() < 0.75:
-        return random.choice(http_proxies)
+    # Randomize order, then test each until we find a live one
+    random.shuffle(available)
     
-    # Try SOCKS5 with SSL fallback
-    socks_ok = [p for p in available if p['protocol'] == 'socks5'
-                and f"{p['ip']}:{p['port']}" not in _bad_proxies]
-    if socks_ok:
-        return random.choice(socks_ok)
+    # Try HTTP/HTTPS first (preferred)
+    http_candidates = [p for p in available if p['protocol'] in ('http', 'https')]
+    random.shuffle(http_candidates)
     
-    return random.choice(available)
+    for proxy in http_candidates[:15]:  # Test up to 15 HTTP proxies
+        if test_proxy(proxy):
+            return proxy
+        # Quick fail — add to bad so we don't retry this run
+        mark_proxy_bad(proxy, quiet=True)
+    
+    # Try SOCKS5 next
+    socks_candidates = [p for p in available if p['protocol'] == 'socks5']
+    random.shuffle(socks_candidates)
+    
+    for proxy in socks_candidates[:8]:
+        if test_proxy(proxy):
+            return proxy
+        mark_proxy_bad(proxy, quiet=True)
+    
+    # Last resort: any remaining untested proxy
+    for proxy in available[:5]:
+        if test_proxy(proxy):
+            return proxy
+    
+    return None  # All proxies dead — go direct
 
-def mark_proxy_bad(proxy):
+def mark_proxy_bad(proxy, quiet=False):
     '''Mark a proxy as temporarily unusable'''
     if proxy:
         key = f"{proxy['ip']}:{proxy['port']}"
         _bad_proxies.add(key)
-        print(f'  ⛔ Marked proxy {key} as bad ({len(_bad_proxies)} bad total)')
+        if not quiet:
+            print(f'  ⛔ Marked proxy {key} as bad ({len(_bad_proxies)} bad total)')
 
 FINGERPRINTS = [
     {
@@ -361,10 +387,11 @@ def adaptive_cycle():
     proxy = get_proxy()
     if proxy:
         proxy_url = f"{proxy['protocol']}://{proxy['ip']}:{proxy['port']}"
-        print(f"  🔌 Using proxy: {proxy['protocol'].upper()} {proxy['ip']}:{proxy['port']}")
+        print(f"  🔌 Using proxy: {proxy['protocol'].upper()} {proxy['ip']}:{proxy['port']} (passes health check)")
     else:
         proxy_url = None
-        print(f"  🔌 Direct connection (no proxy)")
+        pool_size = len(_proxy_pool) if _proxy_pool else 0
+        print(f"  🔌 Direct connection ({pool_size} proxies in pool, none passed health check)")
 
     vp = random.choice(VIEWPORTS)
     opts = Options()
