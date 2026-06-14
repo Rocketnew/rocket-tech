@@ -54,9 +54,7 @@ def get_proxy():
         available = _proxy_pool
     
     # Prefer HTTP/HTTPS proxies (SOCKS has SSL issues in headless Chrome)
-    # Skip port 80 — most free proxies on port 80 don't support HTTPS tunneling
-    http_proxies = [p for p in available if p['protocol'] in ('http', 'https')
-                    and p['port'] not in (80, 8081, 9999, 10000)]
+    http_proxies = [p for p in available if p['protocol'] in ('http', 'https')]
     if http_proxies and random.random() < 0.75:
         return random.choice(http_proxies)
     
@@ -454,9 +452,9 @@ def adaptive_cycle():
             driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
             driver.execute_cdp_cmd("Emulation.setUserAgentOverride", {"userAgent": fp["ua"], "platform": fp["platform"]})
             driver.get("about:blank")
-            time.sleep(1)
+            time.sleep(0.3)
             driver.get(SITE)
-            time.sleep(2)
+            time.sleep(1)
             proxy = None  # Don't mark bad again
         else:
             raise
