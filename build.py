@@ -392,6 +392,7 @@ window.addEventListener('scroll', () => {{
 const Monetag = {{
   init() {{
     this._load('//cdn.monetag.com/v/2025.js', 'mt-main');
+    this._load('//cdn.monetag.com/p/2025.js', 'mt-push');
   }},
   _load(src, id) {{
     if (document.getElementById(id)) return;
@@ -399,9 +400,16 @@ const Monetag = {{
     s.id = id; s.src = src; s.async = true;
     s.setAttribute('data-zone', 'f777923a656a6851a964b8cb54790337');
     document.head.appendChild(s);
+  }},
+  initSlots() {{
+    document.querySelectorAll('[data-ad-slot]').forEach(el => {{
+      const c = el.querySelector('.ad-container');
+      if (c && !c.children.length) c.innerHTML = '<!-- ad slot -->';
+    }});
   }}
 }};
 Monetag.init();
+Monetag.initSlots();
 </script>
 
 </body>
