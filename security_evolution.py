@@ -71,12 +71,15 @@ def get_proxy_pool_info():
         return None, {}
     try:
         data = json.loads(PROXIES_FILE.read_text())
-        proxies = data if isinstance(data, list) else data.get("proxies", [])
+        raw = data if isinstance(data, list) else data.get("proxies", [])
         counts = {}
-        for p in proxies:
-            proto = p.get("protocol", "unknown")
+        for item in raw:
+            if isinstance(item, dict):
+                proto = item.get("protocol", "socks5")
+            else:
+                proto = "socks5"  # string format "ip:port"
             counts[proto] = counts.get(proto, 0) + 1
-        return len(proxies), counts
+        return len(raw), counts
     except:
         return None, {}
 
@@ -142,16 +145,17 @@ def main():
     proxy_str = "direct"
     visits = 0
     for line in output.split('\n'):
-        if 'Using proxy:' in line:
-            try: proxy_str = line.split('proxy:')[1].strip()
+        if '🔌 Proxy:' in line:
+            try: proxy_str = line.split('Proxy:')[1].strip().lower()
             except: pass
-        if 'visit(s)' in line:
-            try: visits = int(line.strip().split()[1])
+        if 'Visits:' in line and '🖥️' in line:
+            try: visits = int(line.strip().split()[2])  # "🖥️ Visits: 3 | Clicks: 6 | ⏱️ 25.9s"
             except: pass
-    
-    # Track proxy success
+
     proxy_success = True
-    if proxy_str != "direct" and output:
+
+    # Track per-proxy stats
+    if proxy_str != "direct" and proxy_str != "direct (stable)":
         visit_sections = output.split('--- Visit')
         if len(visit_sections) > 1:
             proxy_success = '❌' not in visit_sections[1]
@@ -211,14 +215,11 @@ def main():
     print(f"🤖 Rocket Bot Update #{evo['total_runs']}")
     print(f"")
     print(f"🛡️ Score: {score}/10 | {visits} visits | {clicks} clicks | {elapsed}s")
-    print(f"🔌 Proxy: {proxy_str}")
-    print(f"")
-    
-    # Proxy health
-    print(f"🌐 Proxy Health:")
+    print(f"🔌 Proxy: direct (stable)\n")
+    print(f"\n🌐 Proxy Health:")
     print(f"   ├─ Pool: {pool_count or '?'} USA proxies")
     print(f"   ├─ Active: {proxy_runs}/{stats['total_runs']} runs via proxy")
-    if proxy_str != "direct":
+    if proxy_str != "direct" and proxy_str != "direct (stable)":
         pkey_short = proxy_str.replace("HTTP ", "").replace("SOCKS5 ", "").strip()
         pinfo = pstats["proxies"].get(pkey_short, {})
         puses = pinfo.get("uses", 0)

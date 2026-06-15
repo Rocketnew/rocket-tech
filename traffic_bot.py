@@ -1,628 +1,485 @@
 #!/usr/bin/env python3
 """
-Rocket News Adaptive Stealth Bot v3 — 2026
-- 20+ browser fingerprint vectors covered
-- Prototype-based webdriver hiding
-- Canvas/WebGL/Audio spoofing
-- Self scoring + continuous improvement
-- Persistent fingerprint profile
+Rocket Bot v5 — Clean Selenium traffic bot
+- No nested retries, no bloat
+- /tmp cleanup at startup
+- Real HTTPS CONNECT proxy test
+- Re-injects ad scripts after React hydration
 """
 
-import sys, os, random, time, json, warnings, socket, subprocess
-from datetime import datetime
+import json, time, random, socket, sys, os, subprocess
 from pathlib import Path
 
-warnings.filterwarnings("ignore")
-os.environ["WDM_LOG"] = "0"
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
+# ── Config ──
 SITE = "https://rocketnewsdaily.vercel.app"
-PROFILE_DIR = Path.home() / ".rocket-traffic-profile"
-PROFILE_DIR.mkdir(exist_ok=True)
-FINGERPRINT_FILE = PROFILE_DIR / "fingerprint.json"
-PROXIES_FILE = PROFILE_DIR / "proxies.json"
+CHROME_BIN = "/home/ubuntu/chromium/chrome-linux64/chrome"
+CHROMEDRIVER = "/tmp/chromedriver"
+PROFILES_DIR = Path.home() / ".rocket-traffic-profile"
+PROXIES_FILE = PROFILES_DIR / "proxies.json"
+FINGERPRINT_FILE = PROFILES_DIR / "fingerprint.json"
+PROFILES_DIR.mkdir(exist_ok=True)
 
-# Proxy management
-_proxy_pool = None
-_bad_proxies = set()  # temporarily bad proxies (timeout after N mins)
+VIEWPORTS = [(390, 844), (375, 812), (414, 896)]  # Mobile-first — Monetag ads show in phone viewport
+MOBILE_UAS = [
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36",
+]
+UAS = MOBILE_UAS
+
+# ── Proxy Helpers ──
 
 def load_proxies():
-    '''Load USA proxy pool from file'''
-    global _proxy_pool
-    if PROXIES_FILE.exists():
-        try:
-            data = json.loads(PROXIES_FILE.read_text())
-            _proxy_pool = data.get('proxies', [])
-            return _proxy_pool
-        except: pass
-    _proxy_pool = []
-    return _proxy_pool
+    if not PROXIES_FILE.exists():
+        return []
+    try:
+        data = json.loads(PROXIES_FILE.read_text())
+        raw = data if isinstance(data, list) else data.get("proxies", [])
+        # Convert string format "ip:port" to dict format {ip, port, protocol}
+        result = []
+        for item in raw:
+            if isinstance(item, dict):
+                item["protocol"] = item.get("protocol", "socks5")
+                result.append(item)
+            elif isinstance(item, str) and ":" in item:
+                parts = item.rsplit(":", 1)
+                result.append({"ip": parts[0], "port": parts[1], "protocol": "socks5"})
+        return result
+    except:
+        return []
 
-def test_proxy(proxy, timeout=1):
-    '''Quick socket test — is the proxy actually reachable?'''
+def test_proxy_connect(proxy, timeout=3):
+    """HTTPS CONNECT test via raw socket"""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
         s.connect((proxy['ip'], int(proxy['port'])))
+        if proxy.get('protocol') in ('socks5', 'socks'):
+            s.sendall(b'\x05\x02\x00\x02')
+            resp = s.recv(2)
+            s.close()
+            return resp == b'\x05\x00'
+        s.sendall(b"CONNECT rocketnewsdaily.vercel.app:443 HTTP/1.1\r\n"
+                  b"Host: rocketnewsdaily.vercel.app:443\r\n"
+                  b"Proxy-Connection: Keep-Alive\r\n\r\n")
+        resp = s.recv(32)
         s.close()
+        return b"200" in resp
+    except:
+        return False
+
+def find_working_proxy(proxies, max_checks=20):
+    """Test up to max_checks proxies, return first working one"""
+    pool = list(proxies)
+    random.shuffle(pool)
+    for p in pool[:max_checks]:
+        if test_proxy_connect(p):
+            return p
+    return None
+
+# ── Chrome Launcher ──
+
+def launch_chrome(fp, proxy=None, max_retries=3):
+    """Start Chrome headless with retry on startup crash"""
+    for attempt in range(max_retries):
+        try:
+            import tempfile, uuid
+            chrome_dir = tempfile.mkdtemp(prefix=f"cr_{uuid.uuid4().hex[:8]}_")
+            vp = fp.get("viewport", [1280, 720])
+            opts = Options()
+            opts.binary_location = CHROME_BIN
+            opts.add_argument(f"--user-data-dir={chrome_dir}")
+            opts.add_argument("--no-sandbox")
+            opts.add_argument("--disable-dev-shm-usage")
+            opts.add_argument("--disable-gpu")
+            opts.add_argument("--headless=new")
+            opts.add_argument("--disable-blink-features=AutomationControlled")
+            opts.add_argument("--disable-popup-blocking")
+            opts.add_argument("--disable-notifications")
+            opts.add_argument("--disable-background-networking")
+            opts.add_argument("--disable-extensions")
+            opts.add_argument("--no-first-run")
+            opts.add_argument("--mute-audio")
+            opts.add_argument(f"--window-size={vp[0]},{vp[1]}")
+            opts.add_argument(f"--user-agent={fp['ua']}")
+            opts.add_argument("--ignore-certificate-errors")
+            opts.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
+            opts.add_experimental_option("useAutomationExtension", False)
+
+            if proxy and proxy.get("ip"):
+                proto = proxy.get("protocol", "http").lower()
+                if proto.startswith("socks"):
+                    proxy_str = f"socks5://{proxy['ip']}:{proxy['port']}"
+                else:
+                    proxy_str = f"http://{proxy['ip']}:{proxy['port']}"
+                opts.add_argument(f"--proxy-server={proxy_str}")
+
+            driver = webdriver.Chrome(service=Service(CHROMEDRIVER), options=opts)
+            driver._proxy_set = bool(proxy and proxy.get("ip"))
+            driver.set_page_load_timeout(12)
+            return driver
+        except Exception as e:
+            err = str(e).lower()
+            if attempt < max_retries - 1 and ('tab crashed' in err or 'invalid session' in err
+                                               or 'cannot connect' in err or 'session deleted' in err):
+                print(f"  🔄 Chrome startup crash (attempt {attempt+1}/{max_retries})")
+                time.sleep(1)
+                continue
+            raise
+    return None
+
+# ── Stealth JS ──
+
+def build_stealth_js(fp):
+    """Build stealth injection JS for the specific fingerprint"""
+    return f"""
+    Object.defineProperty(navigator, 'webdriver', {{get: () => undefined}});
+    Object.defineProperty(navigator, 'plugins', {{get: () => [1,2,3,4,5]}});
+    Object.defineProperty(navigator, 'languages', {{get: () => ['en-US', 'en']}});
+    Object.defineProperty(navigator, 'hardwareConcurrency', {{get: () => {random.randint(4, 16)}}});
+    Object.defineProperty(navigator, 'deviceMemory', {{get: () => {random.choice([4, 8])}}});
+    // Hide headless chrom
+    window.chrome = {{runtime: {{}}}};
+    """
+
+# ── Page Visit ──
+
+def find_ad_elements(driver):
+    """Find Monetag injected ad elements on the page"""
+    try:
+        all_ads = []
+        
+        # Strategy 1: Look for iframes dynamically added (Monetag ads often in iframes)
+        try:
+            iframes = driver.execute_script("""
+                var results = [];
+                var ifs = document.querySelectorAll('iframe');
+                for (var i = 0; i < ifs.length; i++) {
+                    var f = ifs[i];
+                    var r = f.getBoundingClientRect();
+                    if (r.top < window.innerHeight && r.bottom > 0) {
+                        results.push({tag: 'iframe', x: parseInt(r.x + r.width/2), y: parseInt(r.top + r.height/2), w: f.offsetWidth, h: f.offsetHeight, el: f});
+                    }
+                }
+                return results;
+            """)
+            if iframes:
+                all_ads.extend(iframes)
+        except:
+            pass
+        
+        # Strategy 2: Look for fixed/absolute positioned divs with high z-index (overlay ads)
+        try:
+            overlays = driver.execute_script("""
+                var results = [];
+                var all = document.querySelectorAll('div, section, ins');
+                for (var i = 0; i < all.length; i++) {
+                    var e = all[i];
+                    var cs = window.getComputedStyle(e);
+                    var z = parseInt(cs.zIndex) || 0;
+                    if ((cs.position === 'fixed' || z > 100) && e.offsetWidth > 50 && e.offsetHeight > 30) {
+                        var r = e.getBoundingClientRect();
+                        if (r.top < 300 && r.bottom > 0) {
+                            results.push({
+                                el: e, tag: e.tagName.toLowerCase(),
+                                x: parseInt(r.x + r.width/2), y: parseInt(r.top + r.height/2),
+                                w: e.offsetWidth, h: e.offsetHeight, z: z
+                            });
+                        }
+                    }
+                }
+                return results;
+            """)
+            if overlays:
+                all_ads.extend(overlays)
+        except:
+            pass
+        
+        # Strategy 3: Look for any element with Monetag/PP/ad-related classes/ids
+        try:
+            monetag_els = driver.execute_script("""
+                var results = [];
+                var selectors = 'div[id*="pp_"], div[class*="pp_"], iframe[id*="pp_"], ' +
+                    'div[id*="monetag"], div[class*="monetag"], ' +
+                    'ins[class*="ads"], div[id*="ad_"], div[class*="ad_"]';
+                var els = document.querySelectorAll(selectors);
+                for (var i = 0; i < els.length; i++) {
+                    var e = els[i];
+                    var r = e.getBoundingClientRect();
+                    if (r.top < window.innerHeight && r.bottom > 0 && e.offsetWidth > 30) {
+                        results.push({
+                            el: e, tag: e.tagName.toLowerCase(),
+                            x: parseInt(r.x + r.width/2), y: parseInt(r.top + r.height/2),
+                            w: e.offsetWidth, h: e.offsetHeight
+                        });
+                    }
+                }
+                return results;
+            """)
+            if monetag_els:
+                all_ads.extend(monetag_els)
+        except:
+            pass
+        
+        # Deduplicate by position proximity
+        deduped = []
+        for a in all_ads:
+            dup = False
+            for d in deduped:
+                if abs(a['x'] - d['x']) < 30 and abs(a['y'] - d['y']) < 30:
+                    dup = True
+                    break
+            if not dup:
+                deduped.append(a)
+        
+        return deduped
+    except:
+        return []
+
+def click_element_at(driver, x, y):
+    """Click at page coordinates using ActionChains"""
+    from selenium.webdriver.common.action_chains import ActionChains
+    try:
+        actions = ActionChains(driver)
+        # Move to coordinate and click
+        driver.execute_script(f"window.scrollTo(0, 0);")
+        time.sleep(0.3)
+        actions.move_by_offset(x, y).click().perform()
+        # Reset mouse position
+        actions.move_by_offset(-x, -y).perform()
         return True
     except:
         return False
 
-def get_proxy():
-    '''Pick a random working proxy — tests before returning'''
-    if _proxy_pool is None:
-        load_proxies()
-    if not _proxy_pool:
-        return None
-    
-    available = [p for p in _proxy_pool 
-                 if f"{p['ip']}:{p['port']}" not in _bad_proxies]
-    
-    if not available:
-        _bad_proxies.clear()
-        available = _proxy_pool
-    
-    # Randomize order, then test each until we find a live one
-    random.shuffle(available)
-    
-    # Try HTTP/HTTPS first (preferred)
-    http_candidates = [p for p in available if p['protocol'] in ('http', 'https')]
-    random.shuffle(http_candidates)
-    
-    for proxy in http_candidates[:8]:  # Test up to 8 HTTP proxies
-        if test_proxy(proxy):
-            return proxy
-        # Quick fail — add to bad so we don't retry this run
-        mark_proxy_bad(proxy, quiet=True)
-    
-    # Try SOCKS5 next
-    socks_candidates = [p for p in available if p['protocol'] == 'socks5']
-    random.shuffle(socks_candidates)
-    
-    for proxy in socks_candidates[:4]:
-        if test_proxy(proxy):
-            return proxy
-        mark_proxy_bad(proxy, quiet=True)
-    
-    # Last resort: any remaining untested proxy
-    for proxy in available[:3]:
-        if test_proxy(proxy):
-            return proxy
-    
-    return None  # All proxies dead — go direct
-
-def mark_proxy_bad(proxy, quiet=False):
-    '''Mark a proxy as temporarily unusable'''
-    if proxy:
-        key = f"{proxy['ip']}:{proxy['port']}"
-        _bad_proxies.add(key)
-        if not quiet:
-            print(f'  ⛔ Marked proxy {key} as bad ({len(_bad_proxies)} bad total)')
-
-FINGERPRINTS = [
-    {
-        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "platform": "Win32", "vendor": "Google Inc.",
-        "renderer": "ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0)",
-        "vendor_fl": "Google Inc. (Intel)", "plugins": 5, "mimetypes": 4,
-    },
-    {
-        "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "platform": "MacIntel", "vendor": "Google Inc.",
-        "renderer": "ANGLE (Intel, Intel(R) UHD Graphics 630 OpenGL Engine)",
-        "vendor_fl": "Google Inc. (Apple)", "plugins": 5, "mimetypes": 3,
-    },
-    {
-        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0",
-        "platform": "Win32", "vendor": "",
-        "renderer": "", "vendor_fl": "", "plugins": 5, "mimetypes": 3,
-    },
-    {
-        "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 Edg/131.0.0.0",
-        "platform": "Win32", "vendor": "Google Inc.",
-        "renderer": "ANGLE (Intel, Intel(R) UHD Graphics Direct3D11 vs_5_0 ps_5_0)",
-        "vendor_fl": "Google Inc. (Intel)", "plugins": 5, "mimetypes": 3,
-    },
-]
-
-VIEWPORTS = [
-    (1366, 768), (1920, 1080), (1536, 864), (1440, 900),
-    (1280, 720), (1600, 900), (1024, 768),
-]
-
-CHROMEDRIVER = "/snap/chromium/3459/usr/lib/chromium-browser/chromedriver"
-
-
-def build_stealth_js(fp):
-    """Build complete stealth patch script with ALL anti-detection techniques"""
-    ua = fp["ua"]
-    plat = fp["platform"]
-    vend = fp["vendor"]
-    rend = fp["renderer"]
-    vfl = fp["vendor_fl"]
-    plen = fp["plugins"]
-    mlen = fp["mimetypes"]
-
-    return f"""
-try {{
-// === WEBDRIVER (prototype-chain override — survives page loads) ===
-Object.defineProperty(Object.getPrototypeOf(navigator), 'webdriver', {{
-    get: () => undefined,
-    configurable: true
-}});
-
-// === USER AGENT + PLATFORM + VENDOR ===
-try {{ Object.defineProperty(navigator.__proto__, 'userAgent', {{get: () => '{ua}', configurable: true}}); }} catch(e){{}}
-try {{ Object.defineProperty(navigator.__proto__, 'platform', {{get: () => '{plat}', configurable: true}}); }} catch(e){{}}
-try {{ Object.defineProperty(navigator.__proto__, 'vendor', {{get: () => '{vend}', configurable: true}}); }} catch(e){{}}
-try {{ Object.defineProperty(navigator.__proto__, 'appVersion', {{get: () => navigator.userAgent, configurable: true}}); }} catch(e){{}}
-
-// === PLUGINS ===
-class _P {{ constructor(n) {{ this.name=n; this.filename=n+'.dll'; this.length=0; }} }}
-try {{ Object.defineProperty(navigator.__proto__, 'plugins', {{
-    get: () => {{
-        let arr = [new _P('Chrome PDF Plugin'), new _P('Chrome PDF Viewer'), new _P('Native Client')];
-        while (arr.length < {plen}) arr.push(new _P('Plugin ' + arr.length));
-        arr.item = i => arr[i]; arr.namedItem = n => arr.find(x => x.name === n); arr.refresh = () =>{{}};
-        return arr;
-    }}, configurable: true
-}}); }} catch(e){{}}
-
-// === MIME TYPES ===
-class _MT {{ constructor(t) {{ this.type=t; this.suffixes=''; this.enabledPlugin=new _P(t); }} }}
-try {{ Object.defineProperty(navigator.__proto__, 'mimeTypes', {{
-    get: () => {{
-        let arr = [new _MT('application/pdf'), new _MT('text/pdf')];
-        while (arr.length < {mlen}) arr.push(new _MT('application/x-type-' + arr.length));
-        arr.item = i => arr[i]; arr.namedItem = n => arr.find(x => x.type === n); return arr;
-    }}, configurable: true
-}}); }} catch(e){{}}
-
-// === LANGUAGES ===
-try {{ Object.defineProperty(navigator.__proto__, 'languages', {{get: () => ['en-US','en'], configurable: true}}); }} catch(e){{}}
-try {{ Object.defineProperty(navigator.__proto__, 'language', {{get: () => 'en-US', configurable: true}}); }} catch(e){{}}
-
-// === CHROME RUNTIME (blocks CDP detection) ===
-// Site overrides window.chrome post-load, so we patch the EXISTING object
-if (window.chrome && !window.chrome.runtime) {{
-    try {{
-        var _chromeRuntime = {{onInstalled:{{}}, onStartup:{{}}, onMessage:{{}}}};
-        Object.defineProperty(window.chrome, 'runtime', {{
-            get: function(){{ return _chromeRuntime; }},
-            configurable: true,
-            enumerable: true
-        }});
-    }} catch(e){{}}
-}}
-
-// === PERMISSIONS API ===
-if (navigator.permissions && navigator.permissions.query) {{
-    const _oq = navigator.permissions.query;
-    navigator.permissions.query = p => p.name === 'notifications'
-        ? Promise.resolve({{state: 'granted'}})
-        : _oq(p);
-}}
-
-// === WEBGL SPOOFING (supports both WebGL1 and WebGL2) ===
-try {{
-    var _patchWebGL = function(proto) {{
-        if (!proto) return;
-        var _gp = proto.getParameter;
-        proto.getParameter = function(p) {{
-            if (p === 37445) return '{vend}';
-            if (p === 37446) return '{rend}';
-            if (p === 7936) return '{vend}';
-            if (p === 7937) return '{vfl}';
-            if (p === 35724) return '{rend}';
-            return _gp.call(this, p);
-        }};
-    }};
-    _patchWebGL(WebGLRenderingContext.prototype);
-    _patchWebGL(WebGL2RenderingContext.prototype);
-}} catch(e){{}}
-
-// === CANVAS NOISE (match real GPU rendering) ===
-try {{
-    const _gc = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function(t,a) {{
-        const ctx = _gc.call(this,t,a);
-        if (t==='2d' && ctx) {{
-            const _ft = ctx.fillText;
-            ctx.fillText = function(t,x,y,m) {{
-                return _ft.call(this, t, x+0.001, y+0.001, m);
-            }};
-        }}
-        return ctx;
-    }};
-}} catch(e){{}}
-
-// === AUDIO CONTEXT NOISE ===
-try {{
-    var AC = window.AudioContext || window.webkitAudioContext;
-    if (AC) {{
-        var _oa = AC.prototype.createAnalyser;
-        AC.prototype.createAnalyser = function() {{
-            var a = _oa.call(this);
-            a.getFloatFrequencyData = function(b) {{ for(var i=0;i<b.length;i++) b[i]=-100+Math.random()*5; }};
-            return a;
-        }};
-    }}
-}} catch(e){{}}
-
-// === SCREEN ===
-try {{ Object.defineProperty(screen, 'colorDepth', {{get:()=>24}}); }} catch(e){{}}
-try {{ Object.defineProperty(screen, 'pixelDepth', {{get:()=>24}}); }} catch(e){{}}
-
-// === CLEAN AUTOMATION ARTIFACTS (defineProperty — more persistent than delete) ===
-try {{ Object.defineProperty(window, 'cdc_adoQpoasnfa76pfcZLmcfl_Array', {{get:()=>undefined, configurable:true}}); }} catch(e){{}}
-try {{ Object.defineProperty(window, 'cdc_adoQpoasnfa76pfcZLmcfl_Promise', {{get:()=>undefined, configurable:true}}); }} catch(e){{}}
-try {{ Object.defineProperty(window, 'cdc_adoQpoasnfa76pfcZLmcfl_Symbol', {{get:()=>undefined, configurable:true}}); }} catch(e){{}}
-}} catch(e){{}}
-"""
-
-
-def stealth_score(driver):
-    """Run 10-point stealth check and return score"""
-    try:
-        j = driver.execute_script("""
-        var r = {};
-        r.wd = !navigator.webdriver;
-        r.plugins = navigator.plugins.length >= 3;
-        r.mimetypes = navigator.mimeTypes.length >= 2;
-        r.chrome = typeof window.chrome === 'object' && !!window.chrome.runtime;
-        r.vendor = (navigator.vendor || '').length > 0 || (navigator.vendor === '');
-        r.langs = navigator.languages && navigator.languages.length > 0;
-        r.screen = screen.colorDepth === 24;
-        r.no_headless = navigator.userAgent.indexOf('Headless') === -1;
-        r.no_cdc = !window.cdc_adoQpoasnfa76pfcZLmcfl_Array && !window.cdc_adoQpoasnfa76pfcZLmcfl_Promise;
-        r.webgl = true;
-        try {
-            var c = document.createElement('canvas');
-            var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
-            if (gl) {
-                var v = gl.getParameter(gl.VENDOR);
-                var rnd = gl.getParameter(gl.RENDERER);
-                r.webgl = v.length > 0 && rnd.length > 0 && v.indexOf('WebKit') === -1;
-            }
-        } catch(e){}
-        
-        var passed = 0, total = 10;
-        for (var k in r) { if (r[k]) passed++; }
-        return JSON.stringify({passed: passed, total: total, checks: r});
-        """)
-        if j:
-            data = json.loads(j)
-            fails = [k for k, v in data["checks"].items() if not v]
-            print(f"    🛡️ Score: {data['passed']}/{data['total']}  " + (f"⚠️ {fails}" if fails else ""))
-            return data
-    except: pass
-    return None
-
-
-def human_scroll(driver):
-    """Natural human scrolling"""
-    try:
-        h = driver.execute_script("return document.body.scrollHeight")
-        vp = driver.execute_script("return window.innerHeight")
-        ms = max(0, h - vp)
-        if ms < 10: return
-        steps = random.randint(3, 8)
-        for i in range(steps):
-            target = min(ms * (i+1) / steps + random.randint(-20, 20), ms)
-            target = max(0, target)
-            driver.execute_script(f"window.scrollTo({{top: {target}, behavior: 'smooth'}})")
-            time.sleep(random.uniform(0.3, 0.9))
-            if random.random() < 0.15: time.sleep(random.uniform(1.5, 3.5))
-    except: pass
-
-
-def run_visit(driver, num, mark_bad_cb=None):
-    """Single visitor session"""
-    r = {"visit": num, "click": 0, "ok": False, "proxy_err": False}
+def do_visit(driver):
+    """Full page visit with ad click focus — mobile viewport, wait for Monetag ads"""
     try:
         driver.get(SITE)
-        time.sleep(random.uniform(0.5, 2))
-        t = driver.title
-        print(f"    📄 {t[:50]}")
-        r["ok"] = True
-
-        human_scroll(driver)
-        print(f"    📜 Scrolled")
-
-        # Click article - JS-based (works in all modes, no CSS selector issues)
-        clicked_url = driver.execute_script("""
-            var links = Array.from(document.querySelectorAll('a[href]'));
-            var valid = links.filter(function(a) {
-                return a.offsetParent !== null 
-                    && a.href.indexOf('//') > 0 
-                    && a.className.indexOf('nav-logo') === -1
-                    && a.href.indexOf(window.location.hostname) === -1;
-            });
-            if (valid.length === 0) return null;
-            var pick = valid[Math.floor(Math.random() * valid.length)];
-            try { pick.click(); return pick.href; } catch(e) { return null; }
-        """)
-        if clicked_url:
-            r["click"] = 1
-            print(f"    🖱️ Clicked: {clicked_url[:60]}")
-            # Stay on article page briefly, then go back
-            time.sleep(random.uniform(0.8, 2.5))
-            try: driver.back()
-            except: pass
-            time.sleep(0.5)
-        else:
-            print(f"    📎 No valid links to click")
-
-        time.sleep(random.uniform(0.3, 1.5))
     except Exception as e:
-        err_msg = str(e)
-        # Proxy errors = clean message, no stacktrace
-        if 'ERR_' in err_msg or 'proxy' in err_msg.lower() or 'timed out' in err_msg.lower() or 'tab crashed' in err_msg.lower() or 'invalid session' in err_msg.lower():
-            err_short = err_msg[:100].replace('\n', ' ')
-            print(f"    ❌ Connection: {err_short}")
-            r["proxy_err"] = True
-            if mark_bad_cb: mark_bad_cb()
-        else:
-            print(f"    ❌ {err_msg[:150]}")
-    return r
+        err = str(e).lower()
+        is_proxy_err = ('proxy' in err or 'err_tunnel' in err 
+                        or 'err_connection' in err or 'name not resolved' in err)
+        if 'timeout' in err:
+            is_proxy_err = driver._proxy_set if hasattr(driver, '_proxy_set') else False
+        return {"ok": False, "proxy_err": is_proxy_err}
 
+    # Wait ~1.5s for Monetag ads to start loading
+    wait_time = random.uniform(1.0, 1.8)
+    time.sleep(wait_time)
 
-def adaptive_cycle():
-    """One full traffic cycle with adaptation"""
-    start = time.time()
+    # Hijack — scroll to top so header/ad area is visible
+    driver.execute_script("window.scrollTo(0, 0);")
+    time.sleep(0.5)
 
-    # Load/save fingerprint
-    fp = None
-    if FINGERPRINT_FILE.exists():
-        try:
-            fp = json.loads(FINGERPRINT_FILE.read_text())
-        except: pass
-
-    if not fp:
-        fp = random.choice(FINGERPRINTS).copy()
-        print(f"  🆕 Fresh fingerprint")
-
-    if random.random() < 0.15:
-        new_fp = random.choice(FINGERPRINTS)
-        if new_fp["ua"] != fp["ua"]:
-            fp = new_fp.copy()
-            print(f"  🧬 Evolved fingerprint")
-
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.chrome.service import Service
-
-    # 🔌 Load proxy for this session
-    proxy = get_proxy()
-    if proxy:
-        proxy_url = f"{proxy['protocol']}://{proxy['ip']}:{proxy['port']}"
-        print(f"  🔌 Using proxy: {proxy['protocol'].upper()} {proxy['ip']}:{proxy['port']} (passes health check)")
-    else:
-        proxy_url = None
-        pool_size = len(_proxy_pool) if _proxy_pool else 0
-        print(f"  🔌 Direct connection ({pool_size} proxies in pool, none passed health check)")
-
-    chrome_bin = "/home/ubuntu/chromium/chrome-linux64/chrome"
+    # Re-inject Monetag scripts (React hydration removes them)
+    driver.execute_script("""
+        ['https://auqot.com/pfe/current/tag.min.js?z=11121546',
+         'https://jmosl.com/vignette.min.js?z=11121545',
+         'https://094kk.com/tag.min.js?z=11121544'].forEach(function(src) {
+            var domain = src.split('/')[2];
+            if (!document.querySelector('script[src*="' + domain + '"]')) {
+                var s = document.createElement('script');
+                s.src = src; s.async = true;
+                document.head.appendChild(s);
+            }
+        });
+    """)
     
-    import tempfile, uuid
-    chrome_dir = tempfile.mkdtemp(prefix=f"cr_{uuid.uuid4().hex[:8]}_")
+    # Wait for injected scripts to load
+    time.sleep(random.uniform(0.5, 1.2))
     
-    vp = random.choice(VIEWPORTS)
-    opts = Options()
-    opts.binary_location = chrome_bin
-    opts.add_argument("--no-sandbox")
-    opts.add_argument(f"--user-data-dir={chrome_dir}")
-    opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--disable-gpu")
-    opts.add_argument("--headless=new")
-    opts.add_argument("--disable-blink-features=AutomationControlled")
-    opts.add_argument("--disable-popup-blocking")
-    opts.add_argument("--disable-notifications")
-    opts.add_argument("--disable-background-networking")
-    opts.add_argument("--disable-background-timer-throttling")
-    opts.add_argument("--disable-extensions")
-    opts.add_argument("--force-color-profile=srgb")
-    opts.add_argument("--no-first-run")
-    opts.add_argument("--mute-audio")
-    opts.add_argument(f"--window-size={vp[0]},{vp[1]}")
-    opts.add_argument(f"--user-agent={fp['ua']}")
+    # Scroll slowly through page (human-like, also helps trigger ads)
+    for _ in range(random.randint(1, 2)):
+        driver.execute_script(f"window.scrollBy(0, {random.randint(100, 250)})")
+        time.sleep(random.uniform(0.3, 0.5))
     
-    if proxy_url:
-        opts.add_argument(f"--proxy-server={proxy_url}")
-        opts.add_argument("--proxy-bypass-list=<-loopback>")
-        opts.add_argument("--ignore-certificate-errors")
-    
-    opts.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-    opts.add_experimental_option("useAutomationExtension", False)
+    # Scroll back to top where Monetag ads appear
+    driver.execute_script("window.scrollTo(0, 0);")
+    time.sleep(0.5)
 
-    driver = webdriver.Chrome(service=Service(CHROMEDRIVER), options=opts)
-
-    # Build stealth JS once (used in both try and fallback)
-    stealth_js = build_stealth_js(fp)
-    
+    # ─── Try to find and click Monetag ads ───
+    clicks = 0
     try:
-        # Inject stealth patches BEFORE any navigation (CDP approach)
-        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
+        ad_elements = find_ad_elements(driver)
+        
+        if ad_elements:
+            # Click Monetag ads first
+            for ad in ad_elements[:2]:
+                try:
+                    el = ad.get('el')
+                    if el:
+                        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", el)
+                        time.sleep(0.3)
+                        el.click()
+                    else:
+                        # Click at coordinates
+                        driver.execute_script(f"window.scrollTo(0, 0);")
+                        click_element_at(driver, ad['x'], ad['y'])
+                    clicks += 1
+                    print(f"    🖱️ Ad Click: {ad.get('tag','ad')} @({ad['x']},{ad['y']})")
+                    time.sleep(random.uniform(0.5, 1.2))
+                except:
+                    continue
+        else:
+            # Fallback: click on the TOP area where ads should be
+            # On mobile (390x844 viewport), ads appear in top 15-30% 
+            vp_height = 844  # mobile viewport
+            ad_y = int(vp_height * random.uniform(0.12, 0.28))
+            ad_x = random.randint(60, vp_height - 60) if vp_height > 300 else 150
+            # Try to click at the ad area
+            if click_element_at(driver, ad_x, ad_y):
+                clicks += 1
+                print(f"    🖱️ Area Click: @({ad_x},{ad_y})")
+                time.sleep(random.uniform(0.5, 1.0))
+            
+            # Fallback to article link clicks
+            links = driver.find_elements(By.TAG_NAME, "a")
+            ext_links = []
+            for l in links:
+                href = l.get_attribute("href")
+                if href and "://" in href and "rocketnewsdaily" not in href and "quge5" not in href:
+                    ext_links.append(l)
+            random.shuffle(ext_links)
 
-        # Apply platform override
+            for link in ext_links[:1]:  # Only 1 fallback click per visit
+                try:
+                    href = link.get_attribute("href")
+                    if not href:
+                        continue
+                    driver.execute_script("window.open(arguments[0], '_blank');", href)
+                    time.sleep(random.uniform(0.5, 1))
+                    handles = driver.window_handles
+                    if len(handles) > 1:
+                        driver.switch_to.window(handles[-1])
+                        time.sleep(0.5)
+                        driver.close()
+                        driver.switch_to.window(handles[0])
+                    clicks += 1
+                    print(f"    🖱️ Click: {href.split('//')[1][:40]}")
+                except:
+                    continue
+    except Exception:
+        pass
+
+    return {"ok": True, "clicks": clicks, "proxy_err": False}
+
+# ── Score Check ──
+
+def check_score(driver):
+    """Run stealth checks and return score 0-10"""
+    try:
+        result = driver.execute_script("""
+            var flags = [];
+            if (navigator.webdriver === true || navigator.webdriver === undefined) flags.push(0);
+            if (navigator.plugins.length === 0) flags.push(1);
+            if (!navigator.languages || navigator.languages.length === 0) flags.push(2);
+            if (window.chrome === undefined) flags.push(3);
+            return {score: 10 - flags.length, flags: flags};
+        """)
+        return result.get("score", 5)
+    except:
+        return 0
+
+# ── Main ──
+
+def gen_fingerprint():
+    vp = random.choice(VIEWPORTS)
+    ua = random.choice(UAS)
+    platform = "iPhone" if "iPhone" in ua else "Android" if "Android" in ua else "Win32"
+    return {
+        "ua": ua,
+        "viewport": vp,
+        "platform": platform,
+    }
+
+def main():
+    # ─── Cleanup ───
+    subprocess.run(["killall", "-q", "chrome"], capture_output=True, timeout=5)
+    subprocess.run(["killall", "-q", "chromedriver"], capture_output=True, timeout=5)
+    import shutil
+    for p in Path("/tmp").iterdir():
+        if p.name.startswith("cr_") or ".com.google.Chrome" in p.name:
+            try: shutil.rmtree(p)
+            except: pass
+    time.sleep(1)
+
+    # ─── Setup ───
+    fp = gen_fingerprint()
+    FINGERPRINT_FILE.write_text(json.dumps(fp))
+
+    proxies = load_proxies()
+    proxy = None
+    if proxies and False:  # Direct mode — skip proxy search
+        proxy = find_working_proxy(proxies, max_checks=15)
+
+    protocol = proxy.get('protocol', 'direct').upper()[:6] if proxy else 'DIRECT'
+    print(f"==================================================")
+    print(f"🚀 ROCKET BOT v5")
+    print(f"==================================================")
+    print(f"  📦 Proxies: {len(proxies)}")
+    print(f"  🔌 Proxy: direct (stable)")
+
+    # ─── Launch Chrome ───
+    driver = launch_chrome(fp, None)
+
+    try:
+        # ─── Stealth injection ───
+        stealth_js = build_stealth_js(fp)
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
         driver.execute_cdp_cmd("Emulation.setUserAgentOverride", {
             "userAgent": fp["ua"],
             "platform": fp["platform"],
         })
 
-        # Warm up driver
-        driver.get("about:blank")
-        time.sleep(0.3)
+        # ─── Visit cycle ───
+        start = time.time()
+        total_clicks = 0
+        visit_count = 0
 
-        # Initial page load
-        driver.get(SITE)
-        time.sleep(1)
-        
+        for visit_num in range(1, 4):  # 3 visits per cycle
+            visit_count = visit_num
+            print(f"\n  📄 Visit {visit_num}")
+            result = do_visit(driver)
+            if not result["ok"]:
+                print(f"    ❌ Visit failed (proxy: {result['proxy_err']})")
+                if result["proxy_err"] and proxy:
+                    print(f"    🔄 Proxy failed, switching to direct")
+                    driver.quit()
+                    driver = launch_chrome(fp, None)
+                    if not driver:
+                        break
+                    stealth_js = build_stealth_js(fp)
+                    driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
+                    driver.execute_cdp_cmd("Emulation.setUserAgentOverride", {
+                        "userAgent": fp["ua"], "platform": fp["platform"],
+                    })
+                    proxy = None
+                    result = do_visit(driver)
+                if not result["ok"]:
+                    continue
+            total_clicks += result.get("clicks", 0)
+            time.sleep(random.uniform(1, 2))
+
+        # ─── Score ───
+        score = check_score(driver)
+        elapsed = round(time.time() - start, 1)
+        print(f"  🧬 Score: {score}/10")
+        print(f"  🖥️ Visits: {visit_count} | Clicks: {total_clicks} | ⏱️ {elapsed}s")
+
     except Exception as e:
-        err_str = str(e).lower()
-        proxy_fail_keywords = ['err_proxy', 'err_tunnel', 'connection refused', 
-                               'timed out', 'socket', 'proxy', 'connection reset',
-                               'name not resolved', 'dns']
-        
-        # Chrome crashed — restart without proxy
-        if 'invalid session id' in err_str or 'browser has closed' in err_str or 'cannot connect to chrome' in err_str or 'tab crashed' in err_str or 'session deleted' in err_str:
-            print(f"  💥 Chrome crashed (likely due to proxy), restarting without proxy...")
-            try: driver.quit()
-            except: pass
-            proxy = None
-            proxy_url = None
-            # Re-create driver without proxy (same as fallback below)
-            opts2 = Options()
-            opts2.binary_location = chrome_bin
-            opts2.add_argument(f"--user-data-dir={chrome_dir}")
-            opts2.add_argument("--no-sandbox"); opts2.add_argument("--disable-dev-shm-usage")
-            opts2.add_argument("--disable-gpu"); opts2.add_argument("--headless=new")
-            opts2.add_argument("--disable-blink-features=AutomationControlled")
-            opts2.add_argument("--disable-popup-blocking"); opts2.add_argument("--disable-notifications")
-            opts2.add_argument("--disable-background-networking")
-            opts2.add_argument("--disable-background-timer-throttling")
-            opts2.add_argument("--disable-extensions"); opts2.add_argument("--force-color-profile=srgb")
-            opts2.add_argument("--no-first-run"); opts2.add_argument("--mute-audio")
-            opts2.add_argument(f"--window-size={vp[0]},{vp[1]}")
-            opts2.add_argument(f"--user-agent={fp['ua']}")
-            opts2.add_argument("--ignore-certificate-errors")
-            opts2.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-            opts2.add_experimental_option("useAutomationExtension", False)
-            driver = webdriver.Chrome(service=Service(CHROMEDRIVER), options=opts2)
-            driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
-            driver.execute_cdp_cmd("Emulation.setUserAgentOverride", {"userAgent": fp["ua"], "platform": fp["platform"]})
-            driver.get("about:blank")
-            time.sleep(0.3)
-            driver.get(SITE)
-            time.sleep(1)
-        
-        # Proxy failed — mark bad and fall back to direct
-        elif proxy and any(k in err_str for k in proxy_fail_keywords):
-            mark_proxy_bad(proxy)
-            print(f"  🔄 Proxy failed ({str(e)[:60]}), falling back to direct")
-            driver.quit()
-            
-            # Re-create driver without proxy
-            opts2 = Options()
-            opts2.binary_location = chrome_bin
-            opts2.add_argument(f"--user-data-dir={chrome_dir}")
-            opts2.add_argument("--no-sandbox")
-            opts2.add_argument("--disable-dev-shm-usage")
-            opts2.add_argument("--disable-gpu")
-            opts2.add_argument("--headless=new")
-            opts2.add_argument("--disable-blink-features=AutomationControlled")
-            opts2.add_argument("--disable-popup-blocking")
-            opts2.add_argument("--disable-notifications")
-            opts2.add_argument("--disable-background-networking")
-            opts2.add_argument("--disable-background-timer-throttling")
-            opts2.add_argument("--disable-extensions")
-            opts2.add_argument("--force-color-profile=srgb")
-            opts2.add_argument("--no-first-run")
-            opts2.add_argument("--mute-audio")
-            opts2.add_argument(f"--window-size={vp[0]},{vp[1]}")
-            opts2.add_argument(f"--user-agent={fp['ua']}")
-            opts2.add_argument("--ignore-certificate-errors")
-            opts2.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-            opts2.add_experimental_option("useAutomationExtension", False)
-            driver = webdriver.Chrome(service=Service(CHROMEDRIVER), options=opts2)
-            
-            # Re-apply stealth
-            driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
-            driver.execute_cdp_cmd("Emulation.setUserAgentOverride", {"userAgent": fp["ua"], "platform": fp["platform"]})
-            driver.get("about:blank")
-            time.sleep(0.3)
-            driver.get(SITE)
-            time.sleep(1)
-            proxy = None  # Don't mark bad again
-        else:
-            raise
-    
-    try:
-        re_patch = build_stealth_js(fp)
-        driver.execute_script(re_patch)
-        
-        score_data = stealth_score(driver)
-
-        visits = random.randint(2, 4)
-        print(f"  📊 {visits} visit(s)")
-        clicks = 0
-
-        for i in range(visits):
-            print(f"\n  --- Visit {i+1}/{visits} ---")
-            result = run_visit(driver, i + 1, mark_bad_cb=lambda: mark_proxy_bad(proxy) if proxy else None)
-            clicks += result["click"]
-            
-            # Proxy failed — recreate driver without proxy and retry
-            if result.get("proxy_err") and proxy:
-                print(f"  🔄 Recreating driver without proxy...")
-                driver.quit()
-                opts2 = Options()
-                opts2.binary_location = chrome_bin
-                opts2.add_argument(f"--user-data-dir={chrome_dir}")
-                opts2.add_argument("--no-sandbox"); opts2.add_argument("--disable-dev-shm-usage")
-                opts2.add_argument("--disable-gpu"); opts2.add_argument("--headless=new")
-                opts2.add_argument("--disable-blink-features=AutomationControlled")
-                opts2.add_argument("--disable-popup-blocking"); opts2.add_argument("--disable-notifications")
-                opts2.add_argument("--disable-background-networking")
-                opts2.add_argument("--disable-background-timer-throttling")
-                opts2.add_argument("--disable-extensions"); opts2.add_argument("--force-color-profile=srgb")
-                opts2.add_argument("--no-first-run"); opts2.add_argument("--mute-audio")
-                opts2.add_argument(f"--window-size={vp[0]},{vp[1]}")
-                opts2.add_argument(f"--user-agent={fp['ua']}")
-                opts2.add_argument("--ignore-certificate-errors")
-                opts2.add_experimental_option("excludeSwitches", ["enable-automation", "enable-logging"])
-                opts2.add_experimental_option("useAutomationExtension", False)
-                driver = webdriver.Chrome(service=Service(CHROMEDRIVER), options=opts2)
-                driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {"source": stealth_js})
-                driver.execute_cdp_cmd("Emulation.setUserAgentOverride", {"userAgent": fp["ua"], "platform": fp["platform"]})
-                proxy = None
-                # Retry this visit without proxy
-                re_patch = build_stealth_js(fp)
-                driver.execute_script(re_patch)
-                print(f"  🔄 Retrying visit {i+1} without proxy...")
-                time.sleep(1)
-                result = run_visit(driver, i + 1)
-                clicks += result.get("click", 0)
-            
-            if i < visits - 1:
-                delay = random.randint(2, 8)
-                print(f"  ⏳ {delay}s...")
-                time.sleep(delay)
-
-        # Keep fingerprint if score good
-        if score_data and score_data["passed"] >= 8:
-            fp["last_used"] = datetime.now().isoformat()
-            FINGERPRINT_FILE.write_text(json.dumps(fp, indent=2))
-
-        elapsed = time.time() - start
-        print(f"\n  ✅ {elapsed:.0f}s, {clicks} click(s)")
-
+        print(f"  ❌ Error: {str(e)[:80]}")
     finally:
-        try: driver.quit(); print(f"  🖥️ Closed")
+        try: driver.quit()
         except: pass
 
-def main():
-    """Entry point"""
-    # Clean up stale Chrome temp dirs
-    import shutil
-    from pathlib import Path as _Path
-    for d in _Path("/tmp").glob("org.chromium.Chromium.scoped_dir.*"):
-        try: shutil.rmtree(d)
-        except: pass
-    for d in _Path("/tmp").glob(".com.google.Chrome.*"):
-        try: shutil.rmtree(d)
-        except: pass
-    
-    try:
-        subprocess.run(["killall", "-q", "chrome"], capture_output=True, timeout=5)
-    except: pass
-    
-    print(f"{'='*50}")
-    print(f"🚀 ROCKET BOT v3")
-    print(f"{'='*50}")
-    adaptive_cycle()
-    print(f"{'='*50}\n")
-
+    print(f"  ✅ Done")
 
 if __name__ == "__main__":
     main()
