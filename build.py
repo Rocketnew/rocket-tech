@@ -424,6 +424,7 @@ def generate_html(all_news):
       <h1>Today's <span class="gradient-text">Tech</span></h1>
       <p>The latest news from across the tech world &mdash; curated daily.</p>
     </div>
+    <a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener" class="refer-card-link">
     <article class="news-card refer-card" data-source="rupeewa" aria-label="Rupeewa App - Refer & Earn">
       <div class="card-img-wrapper">
         <div class="card-img" style="background-image:url('refer-earn.jpg');background-size:cover;background-position:center"></div>
@@ -431,7 +432,7 @@ def generate_html(all_news):
         <span class="card-source-tag" style="background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff">&rarr; Refer &amp; Earn</span>
       </div>
       <div class="card-body">
-        <h3><a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener">&#x1f525; Rupeewa App &mdash; Refer &amp; Earn!</a></h3>
+        <h3>&#x1f525; Rupeewa App &mdash; Refer &amp; Earn!</h3>
         <p>&#x1f4f1; WhatsApp tasks karo aur &#x20b9;100+ withdraw karo! Same as Athena App. Limited time offer &mdash; join now and start earning!</p>
         <div class="card-meta">
           <span class="card-time">&#x1f525; Limited Offer</span>
@@ -440,6 +441,7 @@ def generate_html(all_news):
         </div>
       </div>
     </article>
+    </a>
     <div class="hero-header-divider"><span>Featured Stories</span></div>
     <div class="featured-grid">
       {hero_cards_html}

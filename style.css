@@ -233,6 +233,24 @@ body {
   background: rgba(255,255,255,0.1);
 }
 
+/* Full-card clickable referral */
+.refer-card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 16px;
+  margin: 16px 20px 0;
+  overflow: hidden;
+}
+.refer-card-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(124,58,237,0.25);
+}
+.refer-card-link .news-card {
+  margin: 0;
+}
+
 /* Source Gradient Patterns */
 .source-gradient {
   position: absolute;
