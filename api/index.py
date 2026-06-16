@@ -49,10 +49,24 @@ class handler(BaseHTTPRequestHandler):
         # /api/debug
         if path == '/api/debug':
             token = os.environ.get('GITHUB_TOKEN', '')
+            test_config, test_sha = None, None
+            test_write = False
+            test_error = None
+            try:
+                test_config, test_sha = read_config()
+                # Try writing back
+                if test_config:
+                    test_write = write_config(test_config, test_sha)
+            except Exception as e:
+                test_error = str(e)
             json_response(self, {
                 "has_token": bool(token),
-                "token_prefix": token[:8] + '...' if token else '',
+                "token_prefix": token[:10] + '...' if token else '',
                 "token_len": len(token),
+                "config_read": bool(test_config),
+                "sha_found": bool(test_sha),
+                "write_test": test_write,
+                "error": test_error,
                 "python_version": sys.version,
                 "cwd": os.getcwd(),
             })
