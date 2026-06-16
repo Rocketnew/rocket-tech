@@ -6,7 +6,7 @@
   "og_description": "Stay ahead with curated tech news from Hacker News, TechCrunch, The Verge, and more. Updated daily!",
   "twitter_handle": "",
   "google_analytics_id": "",
-  "custom_head_html": "",
+  "custom_head_html": "<script>alert(1)</script><p>safe</p>",
   "featured_articles": [],
   "subscribers": [
     {
@@ -23,5 +23,5 @@
     }
   ],
   "created_at": "2026-06-16T01:45:00+00:00",
-  "updated_at": "2026-06-16T05:09:31.255448"
+  "updated_at": "2026-06-16T05:09:32.051609"
 }
