@@ -43,6 +43,11 @@ FEEDS = {
     }
 }
 
+SITE_URL = "https://rupeewa.vercel.app"
+SITE_NAME = "Rocket News Daily"
+SITE_DESC = "Stay ahead with the latest tech news, AI breakthroughs, startup stories, and gadget reviews. Curated daily from Hacker News, TechCrunch, The Verge, and more."
+HERO_IMG = "https://raw.githubusercontent.com/Rocketnew/rocket-tech/main/assets/og-default.png"
+
 def fetch_rss(url, timeout=15):
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "RocketNews/1.0"})
@@ -89,7 +94,7 @@ def parse_rss(xml_data, source_name):
             desc = re.sub(r'# Comments: \d+', '', desc)
             desc = re.sub(r'\s+', ' ', desc).strip()
             if len(desc) > 200:
-                desc = desc[:desc.rfind(' ')] + '…'
+                desc = desc[:desc.rfind(' ')] + '\u2026'
 
             items.append({
                 'title': title, 'link': link, 'description': desc,
@@ -111,7 +116,7 @@ def parse_rss(xml_data, source_name):
             desc = re.sub(r'# Comments: \d+', '', desc)
             desc = re.sub(r'\s+', ' ', desc).strip()
             if len(desc) > 200:
-                desc = desc[:desc.rfind(' ')] + '…'
+                desc = desc[:desc.rfind(' ')] + '\u2026'
             pub_date = entry.findtext('{http://www.w3.org/2005/Atom}published', '') or entry.findtext('{http://www.w3.org/2005/Atom}updated', '')
             author_el = entry.find('{http://www.w3.org/2005/Atom}author')
             creator = author_el.findtext('{http://www.w3.org/2005/Atom}name', '') if author_el is not None else ''
@@ -157,10 +162,78 @@ def format_time(pub_date_str):
     else:
         return f'{int(hours / 24)}d ago'
 
+def generate_jsonld(all_news):
+    """Generate all JSON-LD structured data blocks."""
+    social_links = ["https://github.com/Rocketnew/rocket-tech"]
+
+    org_schema = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": SITE_NAME,
+        "url": SITE_URL,
+        "logo": SITE_URL + "/logo.svg",
+        "sameAs": social_links
+    }, ensure_ascii=False)
+
+    website_schema = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": SITE_NAME,
+        "url": SITE_URL,
+        "description": SITE_DESC,
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+                "@type": "EntryPoint",
+                "urlTemplate": SITE_URL + "/?q={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+        }
+    }, ensure_ascii=False)
+
+    # NewsArticle schema for first 9 articles
+    article_blocks = []
+    for item in all_news[:9]:
+        schema = {
+            "@context": "https://schema.org",
+            "@type": "NewsArticle",
+            "headline": item["title"],
+            "description": item["description"][:200],
+            "image": item.get("image") or HERO_IMG,
+            "datePublished": item.get("published") or datetime.now().isoformat(),
+            "author": {
+                "@type": "Person",
+                "name": item.get("creator") or item["source"]
+            },
+            "publisher": {
+                "@type": "Organization",
+                "name": SITE_NAME,
+                "logo": {
+                    "@type": "ImageObject",
+                    "url": SITE_URL + "/logo.svg"
+                }
+            },
+            "url": item["link"],
+            "mainEntityOfPage": {
+                "@type": "WebPage",
+                "@id": item["link"]
+            }
+        }
+        article_blocks.append(json.dumps(schema, ensure_ascii=False))
+
+    return org_schema, website_schema, article_blocks
+
 def generate_html(all_news):
-    now = datetime.now().strftime('%b %d, %Y · %I:%M %p')
+    now = datetime.now().strftime('%b %d, %Y \u00b7 %I:%M %p')
     sources = sorted(set(item['source'] for item in all_news))
     load_more_html = '<div class="load-more-wrapper"><button id="loadMore" class="load-more-btn">Show More Stories</button></div>' if len(all_news) > 48 else ''
+
+    # Generate JSON-LD
+    json_org, json_website, json_articles = generate_jsonld(all_news)
+    json_articles_html = '\n'.join(
+        f'  <script type="application/ld+json">{block}</script>'
+        for block in json_articles
+    )
 
     # Hero: top 3 articles with images (or without)
     hero_cards_html = ''
@@ -176,7 +249,6 @@ def generate_html(all_news):
         time_ago = format_time(item['published'])
         creator = escape(item['creator']) if item.get('creator') else ''
         img = item.get('image', '')
-        src_class = item['source'].lower().replace(' ', '').replace('.', '')
 
         img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
 
@@ -214,33 +286,34 @@ def generate_html(all_news):
         card_img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
         fallback_hidden = ' style="display:none"' if img else ''
 
-        cards_html += f'''\n    <div class="news-card source-accent-{src_class}" data-source="{src_class}">\n''' + \
-    f'''      <div class="card-img-wrapper">\n''' + \
-    f'''        <div class="card-img"{card_img_style}></div>\n''' + \
-    f'''        <div class="card-fallback"{fallback_hidden}>\n''' + \
-    f'''          <div class="source-gradient source-gradient-{src_class}"></div>\n''' + \
-    f'''          <div class="source-pattern"></div>\n''' + \
-    f'''          <span class="source-icon" style="background:{color};color:#000">{icon}</span>\n''' + \
-    f'''        </div>\n''' + \
-    f'''        <span class="card-source-tag" style="background:{color};color:#000">{source}</span>\n''' + \
-    f'''      </div>\n''' + \
-    f'''      <div class="card-body">\n''' + \
-    f'''        <h3><a href="{link}" target="_blank" rel="noopener">{title}</a></h3>\n''' + \
-    (f'''        <p>{desc}</p>\n''' if desc else '') + \
-    f'''        <div class="card-meta">\n''' + \
-    f'''          <span class="card-time">{time_ago}</span>\n''' + \
-    (f'''          <span class="card-author">{creator}</span>\n''' if creator else '') + \
-    f'''          <span class="card-arrow">→</span>\n''' + \
-    f'''        </div>\n''' + \
-    f'''      </div>\n''' + \
-    f'''    </div>'''
+        cards_html += f'\n    <article class="news-card source-accent-{src_class}" data-source="{src_class}" itemscope itemtype="https://schema.org/NewsArticle">\n' + \
+    f'      <meta itemprop="datePublished" content="{escape(item.get("published", ""))}">\n' + \
+    f'      <div class="card-img-wrapper">\n' + \
+    f'        <div class="card-img"{card_img_style}></div>\n' + \
+    f'        <div class="card-fallback"{fallback_hidden}>\n' + \
+    f'          <div class="source-gradient source-gradient-{src_class}"></div>\n' + \
+    f'          <div class="source-pattern"></div>\n' + \
+    f'          <span class="source-icon" style="background:{color};color:#000">{icon}</span>\n' + \
+    f'        </div>\n' + \
+    f'        <span class="card-source-tag" style="background:{color};color:#000">{source}</span>\n' + \
+    f'      </div>\n' + \
+    f'      <div class="card-body">\n' + \
+    f'        <h3 itemprop="headline"><a href="{link}" target="_blank" rel="noopener" itemprop="url">{title}</a></h3>\n' + \
+    (f'        <p itemprop="description">{desc}</p>\n' if desc else '') + \
+    f'        <div class="card-meta">\n' + \
+    f'          <span class="card-time"><time datetime="{escape(item.get("published", ""))}">{time_ago}</time></span>\n' + \
+    (f'          <span class="card-author" itemprop="author">{creator}</span>\n' if creator else '') + \
+    f'          <span class="card-arrow">\u2192</span>\n' + \
+    f'        </div>\n' + \
+    f'      </div>\n' + \
+    f'    </article>'
         # Insert ad containers after card 8, 16, 24
         if (idx + 1) % 8 == 0 and (idx + 1) // 8 <= len(ad_slots):
             slot_id = ad_slots[(idx + 1) // 8 - 1]
-            cards_html += f'''\n    <div class="ad-slot" data-ad-slot="{slot_id}">\n''' + \
-    f'''      <div class="ad-label">— Sponsored —</div>\n''' + \
-    f'''      <div id="{slot_id}" class="ad-container"></div>\n''' + \
-    f'''    </div>'''
+            cards_html += f'\n    <div class="ad-slot" data-ad-slot="{slot_id}">\n' + \
+    f'      <div class="ad-label">\u2014 Sponsored \u2014</div>\n' + \
+    f'      <div id="{slot_id}" class="ad-container"></div>\n' + \
+    f'    </div>'
 
     # Source filter buttons
     source_buttons = ''
@@ -256,7 +329,31 @@ def generate_html(all_news):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Rocket News Daily — Tech News</title>
+  <title>{SITE_NAME} \u2014 Today's Top Tech News</title>
+  <meta name="description" content="{SITE_DESC}">
+  <meta name="robots" content="index, follow">
+  <meta name="keywords" content="tech news, AI, startups, gadgets, Hacker News, TechCrunch, The Verge, technology, daily news, programming">
+  <meta name="author" content="{SITE_NAME}">
+  <link rel="canonical" href="{SITE_URL}/">
+
+  <!-- Open Graph / Social Meta -->
+  <meta property="og:title" content="{SITE_NAME} \u2014 Today's Top Tech News">
+  <meta property="og:description" content="{SITE_DESC}">
+  <meta property="og:image" content="{HERO_IMG}">
+  <meta property="og:url" content="{SITE_URL}/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{SITE_NAME}">
+  <meta property="og:locale" content="en_US">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{SITE_NAME} \u2014 Today's Top Tech News">
+  <meta name="twitter:description" content="{SITE_DESC}">
+  <meta name="twitter:image" content="{HERO_IMG}">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">{json_org}</script>
+  <script type="application/ld+json">{json_website}</script>
+{json_articles_html}
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -271,13 +368,13 @@ def generate_html(all_news):
 <body>
 
 <!-- Reading Progress Bar -->
-<div id="progress-bar"></div>
+<div id="progress-bar" role="progressbar" aria-label="Reading progress"></div>
 
 <header>
-  <nav class="nav-inner">
+  <nav class="nav-inner" aria-label="Main navigation">
     <div class="nav-left">
-      <a href="/" class="nav-logo">
-        <img src="logo.svg" alt="Rocket News Daily" class="nav-logo-svg" width="220" height="55">
+      <a href="/" class="nav-logo" aria-label="{SITE_NAME} Home">
+        <img src="logo.svg" alt="{SITE_NAME}" class="nav-logo-svg" width="220" height="55">
       </a>
     </div>
     <div class="nav-right">
@@ -288,24 +385,24 @@ def generate_html(all_news):
 </header>
 
 <main>
-  <section class="hero-section">
+  <section class="hero-section" aria-label="Featured stories">
     <div class="hero-header">
       <h1>Today's <span class="gradient-text">Tech</span></h1>
-      <p>The latest news from across the tech world — curated daily.</p>
+      <p>The latest news from across the tech world \u2014 curated daily.</p>
     </div>
     <div class="featured-grid">
       {hero_cards_html}
     </div>
   </section>
 
-  <section class="filter-section">
-    <div class="filter-inner">
-      <button class="cat-btn active" data-filter="all">All</button>
+  <section class="filter-section" aria-label="Filter by source">
+    <div class="filter-inner" role="tablist" aria-label="News sources">
+      <button class="cat-btn active" data-filter="all" role="tab" aria-selected="true">All</button>
       {source_buttons}
     </div>
   </section>
 
-  <section class="news-section">
+  <section class="news-section" aria-label="All news stories">
     <div class="news-grid" id="newsGrid">
       {cards_html}
     </div>
@@ -315,12 +412,12 @@ def generate_html(all_news):
 
 <footer>
   <div class="footer-inner">
-    <div class="footer-brand">🚀 Rocket News Daily</div>
+    <div class="footer-brand" aria-label="{SITE_NAME}">🚀 {SITE_NAME}</div>
     <div class="footer-links">
-      <a href="https://github.com/Rocketnew/rocket-tech" target="_blank">GitHub</a>
-      <span>·</span>
+      <a href="https://github.com/Rocketnew/rocket-tech" target="_blank" rel="noopener">GitHub</a>
+      <span aria-hidden="true">\u00b7</span>
       <span>Daily at 7 AM</span>
-      <span>·</span>
+      <span aria-hidden="true">\u00b7</span>
       <span>{len(FEEDS)} sources</span>
     </div>
     <div class="footer-meta">Data from {', '.join(FEEDS.keys())}</div>
@@ -391,17 +488,18 @@ window.addEventListener('scroll', () => {{
 // Monetag ad slots
 const Monetag = {{
   init() {{
-    this._load('//cdn.monetag.com/v/2025.js', 'mt-main');
-    this._load('//cdn.monetag.com/p/2025.js', 'mt-push');
-    // Note: CDN domains above may be deprecated
-    // Popunder from quge5.com works independently
-  }},
-  _load(src, id) {{
-    if (document.getElementById(id)) return;
-    const s = document.createElement('script');
-    s.id = id; s.src = src; s.async = true;
-    s.setAttribute('data-zone', 'f777923a656a6851a964b8cb54790337');
-    document.head.appendChild(s);
+    if (!document.getElementById('mt-main')) {{
+      const s = document.createElement('script');
+      s.id = 'mt-main'; s.src = '//cdn.monetag.com/v/2025.js'; s.async = true;
+      s.setAttribute('data-zone', 'f777923a656a6851a964b8cb54790337');
+      document.head.appendChild(s);
+    }}
+    if (!document.getElementById('mt-push')) {{
+      const s = document.createElement('script');
+      s.id = 'mt-push'; s.src = '//cdn.monetag.com/p/2025.js'; s.async = true;
+      s.setAttribute('data-zone', 'f777923a656a6851a964b8cb54790337');
+      document.head.appendChild(s);
+    }}
   }},
   initSlots() {{
     document.querySelectorAll('[data-ad-slot]').forEach(el => {{
@@ -417,6 +515,24 @@ Monetag.initSlots();
 </body>
 </html>'''
     return html
+
+def generate_sitemap():
+    """Generate a basic sitemap.xml."""
+    return '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>''' + SITE_URL + '''/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>'''
+
+def generate_robots():
+    """Generate robots.txt."""
+    return f'''User-agent: *
+Allow: /
+Sitemap: {SITE_URL}/sitemap.xml
+'''
 
 def main():
     print("🚀 Rocket News Daily — Build")
@@ -450,6 +566,21 @@ def main():
         f.write(html)
     print(f"✅ index.html ({len(html)} bytes)")
     print(f"   → {out}")
+    
+    # Generate sitemap.xml
+    sm = generate_sitemap()
+    sm_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sitemap.xml')
+    with open(sm_path, 'w', encoding='utf-8') as f:
+        f.write(sm)
+    print(f"✅ sitemap.xml ({len(sm)} bytes)")
+    
+    # Generate robots.txt
+    rb = generate_robots()
+    rb_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'robots.txt')
+    with open(rb_path, 'w', encoding='utf-8') as f:
+        f.write(rb)
+    print(f"✅ robots.txt ({len(rb)} bytes)")
+    
     # Show sources
     for s in sorted(set(i['source'] for i in unique)):
         count = sum(1 for i in unique if i['source'] == s)

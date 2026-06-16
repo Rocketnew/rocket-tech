@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://rupeewa.vercel.app/sitemap.xml
