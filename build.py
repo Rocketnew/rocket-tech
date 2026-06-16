@@ -399,6 +399,19 @@ def generate_html(all_news):
 </head>
 <body>
 
+<!-- Refer & Earn Banner -->
+<div class="refer-banner">
+  <a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener" class="refer-link">
+    <img src="refer-earn.jpg" alt="Refer & Earn - Rupeewa App" class="refer-img">
+    <div class="refer-text">
+      <span class="refer-title">🔥 <strong>Rupeewa App</strong> — Refer & Earn!</span>
+      <span class="refer-subtitle">📱 WhatsApp Tasks karo, ₹100+ Withdraw karo! Same as Athena App</span>
+      <span class="refer-cta">👉 Click karo & Join Now!</span>
+    </div>
+  </a>
+  <button class="refer-close" onclick="this.parentElement.style.display='none'" aria-label="Close">&times;</button>
+</div>
+
 <!-- Reading Progress Bar -->
 <div id="progress-bar" role="progressbar" aria-label="Reading progress"></div>
 
