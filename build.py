@@ -298,6 +298,24 @@ def generate_html(all_news):
     # Build cards (limit to 48 for performance)
     display_news = all_news[:48]
     cards_html = ''
+    # ─── Referral Card (always first in articles grid) ───
+    cards_html += '''    <article class="news-card refer-card" data-source="rupeewa" aria-label="Rupeewa App - Refer & Earn">
+      <div class="card-img-wrapper">
+        <div class="card-img" style="background-image:url('refer-earn.jpg');background-size:cover;background-position:center"></div>
+        <div class="card-fallback" style="display:none"></div>
+        <span class="card-source-tag" style="background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff">🚀 Refer & Earn</span>
+      </div>
+      <div class="card-body">
+        <h3 itemprop="headline"><a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener" itemprop="url">🔥 Rupeewa App — Refer & Earn!</a></h3>
+        <p itemprop="description">📱 WhatsApp tasks karo aur ₹100+ withdraw karo! Same as Athena App. Limited time offer — join now and start earning!</p>
+        <div class="card-meta">
+          <span class="card-time">🔥 Limited Offer</span>
+          <span class="card-author">Rupeewa Teams</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </div>
+    </article>
+'''
     ad_slots = ['monetag-slot-1', 'monetag-slot-2', 'monetag-slot-3', 'monetag-slot-4', 'monetag-slot-5']
     for idx, item in enumerate(display_news):
         src_info = FEEDS.get(item['source'], {})
@@ -419,20 +437,7 @@ def generate_html(all_news):
 </header>
 
 <main>
-
-<!-- Refer & Earn — Rupeewa App -->
-<section class="refer-hero" aria-label="Refer & Earn">
-  <a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener" class="refer-hero-link">
-    <img src="refer-earn.jpg" alt="Rupeewa App" class="refer-hero-img">
-    <div class="refer-hero-text">
-      <span class="refer-hero-title">🔥 <strong>Rupeewa App</strong> — Refer & Earn!</span>
-      <span class="refer-hero-desc">📱 WhatsApp tasks karo aur ₹100+ withdraw karo! Same as Athena App. Limited time offer — join now!</span>
-      <span class="refer-hero-cta">👉 Join Now & Start Earning!</span>
-    </div>
-  </a>
-</section>
-
-<section class="hero-section" aria-label="Featured stories">
+  <section class="hero-section" aria-label="Featured stories">
     <div class="hero-header">
       <h1>Today's <span class="gradient-text">Tech</span></h1>
       <p>The latest news from across the tech world \u2014 curated daily.</p>
