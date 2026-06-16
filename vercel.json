@@ -8,6 +8,7 @@
   "routes": [
     { "src": "/robots\\.txt", "dest": "/robots.txt" },
     { "src": "/sitemap\\.xml", "dest": "/sitemap.xml" },
+    { "src": "/llms\\.txt", "dest": "/llms.txt" },
     { "src": "/style\\.css", "dest": "/style.css" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/(.*\\.(css|js|png|jpg|svg|ico|json|xml|txt))$", "dest": "/$1" },

@@ -218,19 +218,50 @@ def generate_jsonld(all_news):
         }
         article_blocks.append(json.dumps(schema, ensure_ascii=False))
 
-    return org_schema, website_schema, article_blocks
+    # Speakable schema for Google AI Overview
+    speakable_schema = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": SITE_NAME,
+        "url": SITE_URL,
+        "speakable": {
+            "@type": "SpeakableSpecification",
+            "cssSelector": [".hero-header h1", ".hero-header p", ".featured-card h2"]
+        }
+    }, ensure_ascii=False)
+
+    # FAQPage schema for site categories
+    faq_blocks = []
+    for src in sorted(set(item["source"] for item in all_news)):
+        faq_blocks.append({
+            "@type": "Question",
+            "name": f"Latest {src} news today",
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": f"Find the latest {src} articles, news, and updates on Rupeewa News Daily. Curated daily with the most important stories."
+            }
+        })
+    faq_schema = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": faq_blocks[:5]
+    }, ensure_ascii=False)
+
+    return org_schema, website_schema, article_blocks, speakable_schema, faq_schema
 
 def generate_html(all_news):
-    now = datetime.now().strftime('%b %d, %Y \u00b7 %I:%M %p')
+    now = datetime.now().strftime('%b %d, %Y · %I:%M %p')
+    iso_now = datetime.now().isoformat() + '+00:00'
+    today_str = datetime.now().strftime('%Y-%m-%d')
     sources = sorted(set(item['source'] for item in all_news))
     load_more_html = '<div class="load-more-wrapper"><button id="loadMore" class="load-more-btn">Show More Stories</button></div>' if len(all_news) > 48 else ''
 
     # Generate JSON-LD
-    json_org, json_website, json_articles = generate_jsonld(all_news)
-    json_articles_html = '\n'.join(
-        f'  <script type="application/ld+json">{block}</script>'
-        for block in json_articles
-    )
+    json_org, json_website, json_articles, json_speakable, json_faq = generate_jsonld(all_news)
+    json_articles_html = '\\n'.join(
+        f'  <script type="application/ld+json">{a}</script>' for a in json_articles
+    ) + '\\n  <script type="application/ld+json">' + json_speakable + '</script>'
+    json_articles_html += '\\n  <script type="application/ld+json">' + json_faq + '</script>'
 
     # Hero: top 3 articles with images (or without)
     hero_cards_html = ''
@@ -332,6 +363,9 @@ def generate_html(all_news):
   <meta name="robots" content="index, follow">
   <meta name="keywords" content="tech news, AI, startups, gadgets, Hacker News, TechCrunch, The Verge, technology, daily news, programming">
   <meta name="author" content="{SITE_NAME}">
+  <meta property="article:published_time" content="{iso_now}">
+  <meta property="article:modified_time" content="{iso_now}">
+  <meta name="date" content="{today_str}">
   <link rel="canonical" href="{SITE_URL}/">
 
   <!-- Open Graph / Social Meta -->

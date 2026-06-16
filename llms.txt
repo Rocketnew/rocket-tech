@@ -1,0 +1,17 @@
+# Rupeewa News Daily
+
+> Stay ahead with the latest tech news, AI breakthroughs, startup stories, and gadget reviews. Curated daily from 6 top sources including Hacker News, TechCrunch, The Verge, Ars Technica, Wired, and DEV Community.
+
+## Tech News Categories
+
+- [Today's Top Tech News](https://rupeewa.vercel.app/): Current tech headlines from 6 sources, updated daily at 7 AM.
+- [Hacker News](https://rupeewa.vercel.app/?source=hackernews): Popular tech stories from Y Combinator's community.
+- [TechCrunch](https://rupeewa.vercel.app/?source=techcrunch): Startup news, funding rounds, and tech industry analysis.
+- [The Verge](https://rupeewa.vercel.app/?source=theverge): Consumer tech, reviews, and gadget news.
+- [Wired](https://rupeewa.vercel.app/?source=wired): Technology, science, culture, and politics coverage.
+- [Ars Technica](https://rupeewa.vercel.app/?source=arstechnica): In-depth tech news, science, and IT analysis.
+- [DEV Community](https://rupeewa.vercel.app/?source=devcommunity): Developer-focused articles, tutorials, and programming insights.
+
+## About
+
+Rupeewa News Daily is a curated tech news aggregator that brings together the best technology journalism from across the web. Updated daily with fresh stories from authoritative sources.
