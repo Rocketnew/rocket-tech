@@ -36,7 +36,7 @@ body {
   color: var(--text);
   line-height: 1.6;
   min-height: 100vh;
-  padding-top: 195px;
+  padding-top: 120px;
 }
 
 /* Source Gradient Patterns */
@@ -90,14 +90,13 @@ body {
 
 /* ===== HEADER ===== */
 header {
-  position: fixed;
-  top: 120px;
+  position: sticky;
+  top: 0;
   z-index: 100;
   background: rgba(5,5,8,.85);
   backdrop-filter: blur(24px) saturate(1.4);
   -webkit-backdrop-filter: blur(24px) saturate(1.4);
   border-bottom: 1px solid var(--border);
-  width: 100%;
 }
 
 .nav-inner {
@@ -762,8 +761,6 @@ footer {
 }
 
 @media (max-width: 480px) {
-  body { padding-top: 150px; }
-  header { top: 105px; }
   .nav-inner { padding: 0 16px; }
   .nav-logo-badge { display: none; }
   .hero-section { padding: 24px 16px 16px; }
