@@ -4,10 +4,10 @@
     { "src": "*.html", "use": "@vercel/static" },
     { "src": "style.css", "use": "@vercel/static" },
     { "src": "*.{css,js,jpg,png,svg,ico,xml,txt}", "use": "@vercel/static" },
-    { "src": "api/*.py", "use": "@vercel/python" }
+    { "src": "api/index.py", "use": "@vercel/python" }
   ],
   "routes": [
-    { "src": "/api/(.+)", "dest": "/api/$1" },
+    { "src": "/api/(.*)", "dest": "/api/index.py" },
     { "src": "/robots\\.txt", "dest": "/robots.txt" },
     { "src": "/sitemap\\.xml", "dest": "/sitemap.xml" },
     { "src": "/llms\\.txt", "dest": "/llms.txt" },
@@ -17,5 +17,11 @@
     { "src": "(/google.*\\.html)$", "dest": "$1" },
     { "src": "/admin(/.*)?", "dest": "/admin.html" },
     { "src": "/(.*)", "dest": "/index.html" }
-  ]
+  ],
+  "functions": {
+    "api/index.py": {
+      "memory": 256,
+      "maxDuration": 10
+    }
+  }
 }
