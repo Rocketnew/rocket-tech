@@ -44,9 +44,9 @@ FEEDS = {
 }
 
 SITE_URL = "https://rupeewa.vercel.app"
-SITE_NAME = "Rocket News Daily"
+SITE_NAME = "Rupeewa News Daily"
 SITE_DESC = "Stay ahead with the latest tech news, AI breakthroughs, startup stories, and gadget reviews. Curated daily from Hacker News, TechCrunch, The Verge, and more."
-HERO_IMG = "https://raw.githubusercontent.com/Rocketnew/rocket-tech/main/assets/og-default.png"
+HERO_IMG = "https://rupeewa.vercel.app/assets/logo.jpg"
 
 def fetch_rss(url, timeout=15):
     try:
@@ -171,7 +171,7 @@ def generate_jsonld(all_news):
         "@type": "Organization",
         "name": SITE_NAME,
         "url": SITE_URL,
-        "logo": SITE_URL + "/logo.svg",
+        "logo": SITE_URL + "/assets/logo.jpg",
         "sameAs": social_links
     }, ensure_ascii=False)
 
@@ -208,10 +208,7 @@ def generate_jsonld(all_news):
             "publisher": {
                 "@type": "Organization",
                 "name": SITE_NAME,
-                "logo": {
-                    "@type": "ImageObject",
-                    "url": SITE_URL + "/logo.svg"
-                }
+                "logo": SITE_URL + "/assets/logo.jpg"
             },
             "url": item["link"],
             "mainEntityOfPage": {
@@ -374,7 +371,7 @@ def generate_html(all_news):
   <nav class="nav-inner" aria-label="Main navigation">
     <div class="nav-left">
       <a href="/" class="nav-logo" aria-label="{SITE_NAME} Home">
-        <img src="logo.svg" alt="{SITE_NAME}" class="nav-logo-svg" width="220" height="55">
+        <img src="logo.jpg" alt="{SITE_NAME}" class="nav-logo-svg" style="height:40px;width:auto">
       </a>
     </div>
     <div class="nav-right">
@@ -535,7 +532,7 @@ Sitemap: {SITE_URL}/sitemap.xml
 '''
 
 def main():
-    print("🚀 Rocket News Daily — Build")
+    print("🚀 Rupeewa News Daily — Build")
     print(f"   {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
     all_news = []
