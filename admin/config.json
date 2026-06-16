@@ -16,8 +16,12 @@
     {
       "email": "verify@secure.com",
       "subscribed_at": "2026-06-16T03:53:52"
+    },
+    {
+      "email": "test@test.com",
+      "subscribed_at": "2026-06-16T05:09:31"
     }
   ],
   "created_at": "2026-06-16T01:45:00+00:00",
-  "updated_at": "2026-06-16T05:09:30.489807"
+  "updated_at": "2026-06-16T05:09:31.255448"
 }
