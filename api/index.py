@@ -136,7 +136,7 @@ class handler(BaseHTTPRequestHandler):
                 if any(s.get('email') == email for s in subs):
                     json_response(self, {"status": "exists"})
                     return
-                subs.append({"email": email, "subscribed_at": datetime.datetime.now().isoformat() if 'datetime' in dir(sys.modules.get('datetime',type('',(),{'datetime':None})())) else time.strftime('%Y-%m-%dT%H:%M:%S')})
+                subs.append({"email": email, "subscribed_at": time.strftime('%Y-%m-%dT%H:%M:%S')})
                 config['subscribers'] = subs
                 if write_config(config, sha):
                     json_response(self, {"status": "subscribed"})
