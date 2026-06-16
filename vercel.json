@@ -11,6 +11,7 @@
     { "src": "/style\\.css", "dest": "/style.css" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/(.*\\.(css|js|png|jpg|svg|ico|json|xml|txt))$", "dest": "/$1" },
+    { "src": "(/google.*\\.html)$", "dest": "$1" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
