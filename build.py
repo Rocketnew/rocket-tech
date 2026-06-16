@@ -399,19 +399,6 @@ def generate_html(all_news):
 </head>
 <body>
 
-<!-- Refer & Earn Banner -->
-<div class="refer-banner">
-  <a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener" class="refer-link">
-    <img src="refer-earn.jpg" alt="Refer & Earn - Rupeewa App" class="refer-img">
-    <div class="refer-text">
-      <span class="refer-title">🔥 <strong>Rupeewa App</strong> — Refer & Earn!</span>
-      <span class="refer-subtitle">📱 WhatsApp Tasks karo, ₹100+ Withdraw karo! Same as Athena App</span>
-      <span class="refer-cta">👉 Click karo & Join Now!</span>
-    </div>
-  </a>
-  <button class="refer-close" onclick="this.parentElement.style.display='none'" aria-label="Close">&times;</button>
-</div>
-
 <!-- Reading Progress Bar -->
 <div id="progress-bar" role="progressbar" aria-label="Reading progress"></div>
 
@@ -425,6 +412,10 @@ def generate_html(all_news):
       </a>
     </div>
     <div class="nav-right">
+      <a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener" class="nav-refer" style="display:inline-flex;align-items:center;gap:6px;padding:4px 12px;background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;margin-right:12px;white-space:nowrap">
+        <img src="refer-earn.jpg" style="height:22px;width:22px;border-radius:50%;object-fit:cover;flex-shrink:0" alt="">
+        🔥 Refer & Earn
+      </a>
       <span class="nav-stats">{len(display_news)} stories</span>
       <span class="nav-update">Updated {now}</span>
     </div>
