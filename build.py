@@ -258,10 +258,10 @@ def generate_html(all_news):
 
     # Generate JSON-LD
     json_org, json_website, json_articles, json_speakable, json_faq = generate_jsonld(all_news)
-    json_articles_html = '\\n'.join(
+    json_articles_html = '\n'.join(
         f'  <script type="application/ld+json">{a}</script>' for a in json_articles
-    ) + '\\n  <script type="application/ld+json">' + json_speakable + '</script>'
-    json_articles_html += '\\n  <script type="application/ld+json">' + json_faq + '</script>'
+    ) + '\n  <script type="application/ld+json">' + json_speakable + '</script>'
+    json_articles_html += '\n  <script type="application/ld+json">' + json_faq + '</script>'
 
     # Hero: top 3 articles with images (or without)
     hero_cards_html = ''
