@@ -46,6 +46,18 @@ class handler(BaseHTTPRequestHandler):
             json_response(self, {"status": "ok", "service": "Rupeewa Admin", "version": "3.0"})
             return
         
+        # /api/debug
+        if path == '/api/debug':
+            token = os.environ.get('GITHUB_TOKEN', '')
+            json_response(self, {
+                "has_token": bool(token),
+                "token_prefix": token[:8] + '...' if token else '',
+                "token_len": len(token),
+                "python_version": sys.version,
+                "cwd": os.getcwd(),
+            })
+            return
+        
         # /api/login (GET = check auth)
         if path == '/api/login':
             user = _auth_required(self)
