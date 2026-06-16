@@ -10,8 +10,19 @@ ADMIN_USER = os.environ.get('ADMIN_USER', 'admin')
 ADMIN_PASS_HASH = os.environ.get('ADMIN_PASS_HASH', '')
 VERCEL_DEPLOY_HOOK = os.environ.get('VERCEL_DEPLOY_HOOK', '')
 
-def _simple_hash(pw):
-    return hashlib.sha256(pw.encode()).hexdigest()
+def _verify_password(password, stored_hash):
+    # Verify password against PBKDF2-SHA256 hash format
+    if not stored_hash:
+        return hashlib.sha256(password.encode()).hexdigest() == 'fake_default'
+    try:
+        parts = stored_hash.split('$')
+        if len(parts) != 4 or parts[0] != 'pbkdf2_sha256':
+            return False
+        _, iterations, salt_b64, hash_b64 = parts
+        dk = hashlib.pbkdf2_hmac('sha256', password.encode(), base64.b64decode(salt_b64), int(iterations))
+        return base64.b64encode(dk).decode() == hash_b64
+    except:
+        return False
 
 def _make_token(username):
     payload = json.dumps({"user": username, "exp": time.time() + 86400, "iat": time.time()})
@@ -99,8 +110,7 @@ class handler(BaseHTTPRequestHandler):
             params = parse_qs(body)
             username = params.get('username', [''])[0]
             password = params.get('password', [''])[0]
-            expected_hash = ADMIN_PASS_HASH or _simple_hash('admin123')
-            if username == ADMIN_USER and _simple_hash(password) == expected_hash:
+            if username == ADMIN_USER and _verify_password(password, ADMIN_PASS_HASH):
                 token = _make_token(username)
                 json_response(self, {"access_token": token, "token_type": "bearer", "username": username})
             else:
