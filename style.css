@@ -213,6 +213,26 @@ body {
   .refer-hero-cta { margin: 4px auto 0; }
 }
 
+.hero-header-divider {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  margin: 16px 0 8px;
+  gap: 12px;
+  color: rgba(255,255,255,0.35);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.hero-header-divider::before,
+.hero-header-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.1);
+}
+
 /* Source Gradient Patterns */
 .source-gradient {
   position: absolute;
