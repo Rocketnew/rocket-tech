@@ -529,6 +529,7 @@ def generate_robots():
     return f'''User-agent: *
 Allow: /
 Sitemap: {SITE_URL}/sitemap.xml
+Allow: /5d056d40300e29ccd5adea9fca179696.txt
 '''
 
 def main():

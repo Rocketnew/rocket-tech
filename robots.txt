@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
 Sitemap: https://rupeewa.vercel.app/sitemap.xml
+Allow: /5d056d40300e29ccd5adea9fca179696.txt
