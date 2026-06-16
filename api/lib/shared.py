@@ -51,7 +51,7 @@ def write_github_file(path, data, sha=None, message='admin config update'):
     r = requests.put(url, json=payload, headers=headers)
     return r.status_code in (200, 201)
 
-def read_config(handler):
+def read_config():
     """Read admin config from GitHub."""
     config, sha = read_github_file(CONFIG_PATH)
     if config is None:
