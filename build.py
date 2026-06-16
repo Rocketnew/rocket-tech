@@ -371,7 +371,9 @@ def generate_html(all_news):
   <nav class="nav-inner" aria-label="Main navigation">
     <div class="nav-left">
       <a href="/" class="nav-logo" aria-label="{SITE_NAME} Home">
-        <img src="logo.jpg" alt="{SITE_NAME}" class="nav-logo-svg" style="height:40px;width:auto">
+        <img src="logo.jpg" alt="{SITE_NAME}" class="nav-logo-svg" style="height:50px;width:auto;object-fit:contain">
+        <span class="nav-logo-text">Rupeewa</span>
+        <span class="nav-logo-badge">News Daily</span>
       </a>
     </div>
     <div class="nav-right">
