@@ -625,6 +625,117 @@ function shareArticle(title, url) {{
     window.open(shareUrl, 'share', 'width=550,height=420');
   }}
 }}
+
+// Push Notifications
+const vapidPublicKey = 'BP3qGc-cn0TfGRDAkVrgfYAKqEEIvygeWxR77B1trmNN4Vy5oOj_pLDQLUpVY1Vi0-Bg9GhKFf-STnagdc1R3QM';
+
+function urlBase64ToUint8Array(base64String) {{
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return new Uint8Array([...rawData].map(char => char.charCodeAt(0)));
+}}
+
+async function initPushNotifications() {{
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {{
+    console.log('Push notifications not supported');
+    return;
+  }}
+  
+  try {{
+    // Register service worker
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    
+    // Check existing subscription
+    let sub = await reg.pushManager.getSubscription();
+    if (sub) {{
+      await sendSubscriptionToServer(sub);
+      showPushStatus(true);
+      return;
+    }}
+    
+    // Show subscribe button after a delay
+    setTimeout(showPushPrompt, 10000);
+  }} catch (err) {{
+    console.error('Push init failed:', err);
+  }}
+}}
+
+function showPushPrompt() {{
+  // Don't show if already subscribed or dismissed
+  if (localStorage.getItem('push_dismissed')) return;
+  if (document.querySelector('.push-prompt')) return;
+  
+  const prompt = document.createElement('div');
+  prompt.className = 'push-prompt';
+  prompt.innerHTML = `
+    <div class="push-prompt-content">
+      <span class="push-icon">🔔</span>
+      <div class="push-text">
+        <strong>Get notified</strong>
+        <span>New tech news alerts</span>
+      </div>
+      <button class="push-btn" onclick="subscribePush()">Enable</button>
+      <button class="push-dismiss" onclick="dismissPushPrompt()">&times;</button>
+    </div>
+  `;
+  document.body.appendChild(prompt);
+}}
+
+function dismissPushPrompt() {{
+  const prompt = document.querySelector('.push-prompt');
+  if (prompt) prompt.remove();
+  localStorage.setItem('push_dismissed', 'true');
+}}
+
+async function subscribePush() {{
+  const btn = document.querySelector('.push-btn');
+  if (btn) btn.disabled = true;
+  
+  try {{
+    const reg = await navigator.serviceWorker.ready;
+    const permission = await Notification.requestPermission();
+    
+    if (permission !== 'granted') {{
+      throw new Error('Permission denied');
+    }}
+    
+    const sub = await reg.pushManager.subscribe({{
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+    }});
+    
+    await sendSubscriptionToServer(sub);
+    dismissPushPrompt();
+    showPushStatus(true);
+    console.log('Push subscribed!');
+  }} catch (err) {{
+    console.error('Push subscribe failed:', err);
+    if (btn) btn.disabled = false;
+    alert('Failed to enable notifications. Please try again.');
+  }}
+}}
+
+async function sendSubscriptionToServer(subscription) {{
+  try {{
+    await fetch('/api/push/subscribe', {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json' }},
+      body: JSON.stringify(subscription)
+    }});
+  }} catch (err) {{
+    console.error('Failed to send subscription:', err);
+  }}
+}}
+
+function showPushStatus(enabled) {{
+  // Could add a status indicator in header
+  console.log('Push notifications:', enabled ? 'enabled' : 'disabled');
+}}
+
+// Initialize push notifications
+document.addEventListener('DOMContentLoaded', initPushNotifications);
 </script>
 
 </body>
