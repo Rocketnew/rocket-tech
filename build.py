@@ -326,7 +326,8 @@ def generate_html(all_news):
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{SITE_NAME} \u2014 Today's Top Tech News</title>
+  <meta name="google-site-verification" content="4lKhG4kpuIxY8trSyF3P4g685OgZlY1l09pk29As63k">
+  <title>{SITE_NAME} — Today's Top Tech News</title>
   <meta name="description" content="{SITE_DESC}">
   <meta name="robots" content="index, follow">
   <meta name="keywords" content="tech news, AI, startups, gadgets, Hacker News, TechCrunch, The Verge, technology, daily news, programming">
