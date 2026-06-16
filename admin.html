@@ -233,6 +233,33 @@ async function api(method, path, body) {
     return data;
 }
 
+// ─── XSS SANITIZATION ────────────────────────────────────────────────
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function escapeAttr(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function escapeUrl(str) {
+    if (!str) return '';
+    return str.replace(/'/g, '%27').replace(/"/g, '%22').replace(/</g, '%3C').replace(/>/g, '%3E');
+}
+// ─────────────────────────────────────────────────────────────────────
+
 function showLogin() {
     document.getElementById('loginPage').classList.remove('hidden');
     document.getElementById('appContainer').classList.add('hidden');
@@ -249,7 +276,7 @@ async function login() {
     const form = new FormData();
     form.append('username', user);
     form.append('password', pass);
-    const data = await api('POST', '/auth/login', form);
+    const data = await api('POST', '/login', form);
     if (data && data.access_token) {
         token = data.access_token;
         localStorage.setItem('token', token);
@@ -345,13 +372,13 @@ async function loadArticles(el) {
                 ${data.articles.map((a, i) => `
                     <tr>
                         <td style="max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                            <a href="${a.url}" target="_blank" title="${a.title}">${a.title.substring(0, 60)}${a.title.length > 60 ? '...' : ''}</a>
+                            <a href="${escapeUrl(a.url)}" target="_blank" title="${escapeAttr(a.title)}">${escapeHtml(a.title.substring(0, 60))}${a.title.length > 60 ? '...' : ''}</a>
                         </td>
                         <td><span class="badge ${a.is_featured ? 'badge-green' : 'badge-yellow'}">${a.is_featured ? '★' : '☆'}</span></td>
                         <td>${a.is_hidden ? '❌' : '👁️'}</td>
                         <td>
-                            <button class="btn btn-sm ${a.is_featured ? 'btn-outline' : 'btn-primary'}" onclick="toggleFeatured('${a.url.replace(/'/g, "\\'")}', ${!a.is_featured})">${a.is_featured ? 'Unfeature' : 'Feature'}</button>
-                            <button class="btn btn-sm btn-danger" onclick="toggleHidden('${a.url.replace(/'/g, "\\'")}', ${!a.is_hidden})">${a.is_hidden ? 'Show' : 'Hide'}</button>
+                            <button class="btn btn-sm ${a.is_featured ? 'btn-outline' : 'btn-primary'}" onclick="toggleFeatured('${escapeUrl(a.url)}', ${!a.is_featured})">${a.is_featured ? 'Unfeature' : 'Feature'}</button>
+                            <button class="btn btn-sm btn-danger" onclick="toggleHidden('${escapeUrl(a.url)}', ${!a.is_hidden})">${a.is_hidden ? 'Show' : 'Hide'}</button>
                         </td>
                     </tr>
                 `).join('')}
@@ -402,16 +429,16 @@ async function loadSources(el) {
                 <tr><th>Name</th><th>RSS URL</th><th>Limit</th><th>Action</th></tr>
                 ${Object.entries(data.build_sources || {}).map(([name, url]) => `
                     <tr>
-                        <td><strong>${name}</strong></td>
-                        <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis">${url}</td>
+                        <td><strong>${escapeHtml(name)}</strong></td>
+                        <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(url)}</td>
                         <td>—</td>
                         <td><span class="badge badge-blue">build.py</span></td>
                     </tr>
                 `).join('')}
                 ${(data.db_sources || []).map(s => `
                     <tr>
-                        <td><strong>${s.name}</strong></td>
-                        <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis">${s.rss_url}</td>
+                        <td><strong>${escapeHtml(s.name)}</strong></td>
+                        <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis">${escapeHtml(s.rss_url)}</td>
                         <td>${s.article_limit}</td>
                         <td>
                             <button class="btn btn-sm btn-danger" onclick="deleteSource(${s.id})">Delete</button>
@@ -454,35 +481,35 @@ async function loadSeo(el) {
         <div class="card">
             <div class="form-row">
                 <label>Site Name</label>
-                <input type="text" id="seo_site_name" value="${data.site_name || 'Rupeewa News Daily'}">
+                <input type="text" id="seo_site_name" value="${escapeAttr(data.site_name || 'Rupeewa News Daily')}">
             </div>
             <div class="form-row">
                 <label>Site Description</label>
-                <textarea id="seo_site_description">${data.site_description || ''}</textarea>
+                <textarea id="seo_site_description">${escapeHtml(data.site_description || '')}</textarea>
             </div>
             <div class="form-row">
                 <label>Keywords</label>
-                <input type="text" id="seo_site_keywords" value="${data.site_keywords || ''}">
+                <input type="text" id="seo_site_keywords" value="${escapeAttr(data.site_keywords || '')}">
             </div>
             <div class="form-row">
                 <label>OG Title</label>
-                <input type="text" id="seo_og_title" value="${data.og_title || ''}">
+                <input type="text" id="seo_og_title" value="${escapeAttr(data.og_title || '')}">
             </div>
             <div class="form-row">
                 <label>OG Description</label>
-                <textarea id="seo_og_description">${data.og_description || ''}</textarea>
+                <textarea id="seo_og_description">${escapeHtml(data.og_description || '')}</textarea>
             </div>
             <div class="form-row">
                 <label>Twitter Handle (without @)</label>
-                <input type="text" id="seo_twitter_handle" value="${data.twitter_handle || ''}">
+                <input type="text" id="seo_twitter_handle" value="${escapeAttr(data.twitter_handle || '')}">
             </div>
             <div class="form-row">
                 <label>Google Analytics ID (GA4 - G-XXXXXXXXXX)</label>
-                <input type="text" id="seo_google_analytics_id" value="${data.google_analytics_id || ''}" placeholder="G-XXXXXXXXXX">
+                <input type="text" id="seo_google_analytics_id" value="${escapeAttr(data.google_analytics_id || '')}" placeholder="G-XXXXXXXXXX">
             </div>
             <div class="form-row">
                 <label>Custom Head HTML (injected before &lt;/head&gt;)</label>
-                <textarea id="seo_custom_head_html" style="min-height:100px;font-family:monospace;">${data.custom_head_html || ''}</textarea>
+                <textarea id="seo_custom_head_html" style="min-height:100px;font-family:monospace;">${escapeHtml(data.custom_head_html || '')}</textarea>
             </div>
             <button class="btn btn-primary" onclick="saveSeo()">💾 Save Settings</button>
         </div>
@@ -563,7 +590,7 @@ async function loadBuildLogs() {
                 <td style="font-size:0.8rem">${l.started ? new Date(l.started).toLocaleString() : '-'}</td>
                 <td><span class="badge ${l.status === 'success' ? 'badge-green' : l.status === 'failed' ? 'badge-red' : 'badge-yellow'}">${l.status}</span></td>
                 <td>${l.articles || 0}</td>
-                <td style="font-size:0.8rem;color:#fca5a5;max-width:200px;overflow:hidden">${l.error || ''}</td>
+                <td style="font-size:0.8rem;color:#fca5a5;max-width:200px;overflow:hidden">${escapeHtml(l.error || '')}</td>
             </tr>
         `).join('')}
     </table></div>`;
@@ -601,7 +628,7 @@ async function loadSubscribers(el) {
                 <tr><th>Email</th><th>Subscribed</th><th>Active</th></tr>
                 ${data.subscribers.map(s => `
                     <tr>
-                        <td>${s.email}</td>
+                        <td>${escapeHtml(s.email)}</td>
                         <td style="font-size:0.85rem">${new Date(s.subscribed_at).toLocaleDateString()}</td>
                         <td><span class="badge ${s.is_active ? 'badge-green' : 'badge-red'}">${s.is_active ? '✅' : '❌'}</span></td>
                     </tr>
