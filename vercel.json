@@ -3,11 +3,9 @@
   "builds": [
     { "src": "*.html", "use": "@vercel/static" },
     { "src": "style.css", "use": "@vercel/static" },
-    { "src": "*.{css,js,jpg,png,svg,ico,xml,txt}", "use": "@vercel/static" },
-    { "src": "api/*.py", "use": "@vercel/python" }
+    { "src": "*.{css,js,jpg,png,svg,ico,xml,txt}", "use": "@vercel/static" }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "api/$1" },
     { "src": "/robots\\.txt", "dest": "/robots.txt" },
     { "src": "/sitemap\\.xml", "dest": "/sitemap.xml" },
     { "src": "/llms\\.txt", "dest": "/llms.txt" },
