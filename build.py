@@ -46,7 +46,7 @@ FEEDS = {
 SITE_URL = "https://rupeewa.vercel.app"
 SITE_NAME = "Rupeewa News Daily"
 SITE_DESC = "Stay ahead with the latest tech news, AI breakthroughs, startup stories, and gadget reviews. Curated daily from Hacker News, TechCrunch, The Verge, and more."
-HERO_IMG = "https://rupeewa.vercel.app/assets/logo.jpg"
+HERO_IMG = "https://rupeewa.vercel.app/logo.jpg"
 
 def fetch_rss(url, timeout=15):
     try:
@@ -171,7 +171,7 @@ def generate_jsonld(all_news):
         "@type": "Organization",
         "name": SITE_NAME,
         "url": SITE_URL,
-        "logo": SITE_URL + "/assets/logo.jpg",
+        "logo": SITE_URL + "/logo.jpg",
         "sameAs": social_links
     }, ensure_ascii=False)
 
@@ -208,7 +208,7 @@ def generate_jsonld(all_news):
             "publisher": {
                 "@type": "Organization",
                 "name": SITE_NAME,
-                "logo": SITE_URL + "/assets/logo.jpg"
+                "logo": SITE_URL + "/logo.jpg"
             },
             "url": item["link"],
             "mainEntityOfPage": {
