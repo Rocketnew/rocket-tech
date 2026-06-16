@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rupeewa Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: #0f0f13;
+            color: #e1e1e8;
+            min-height: 100vh;
+        }
+        a { color: #6c63ff; text-decoration: none; }
+        a:hover { color: #8b83ff; }
+
+        /* Login */
+        .login-page {
+            display: flex; align-items: center; justify-content: center;
+            min-height: 100vh; padding: 2rem;
+        }
+        .login-box {
+            background: #1a1a24; border-radius: 16px;
+            padding: 3rem; width: 100%; max-width: 400px;
+            border: 1px solid #2a2a3a;
+        }
+        .login-box h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+        .login-box p { color: #888; margin-bottom: 2rem; font-size: 0.9rem; }
+        .login-box input {
+            width: 100%; padding: 0.85rem 1rem;
+            background: #12121a; border: 1px solid #2a2a3a;
+            border-radius: 10px; color: #e1e1e8; font-size: 0.95rem;
+            margin-bottom: 1rem; outline: none;
+        }
+        .login-box input:focus { border-color: #6c63ff; }
+        .login-box button {
+            width: 100%; padding: 0.85rem;
+            background: linear-gradient(135deg, #6c63ff, #8b5cf6);
+            border: none; border-radius: 10px; color: #fff;
+            font-size: 1rem; font-weight: 600; cursor: pointer;
+        }
+        .login-box button:hover { opacity: 0.9; }
+        .login-error { color: #ff6b6b; font-size: 0.85rem; margin-top: 0.5rem; }
+
+        /* Layout */
+        .app-container { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 240px; background: #14141e; border-right: 1px solid #2a2a3a;
+            padding: 1.5rem; flex-shrink: 0;
+        }
+        .sidebar h2 { font-size: 1rem; color: #fff; margin-bottom: 1.5rem; }
+        .sidebar h2 span { color: #6c63ff; }
+        .sidebar nav { display: flex; flex-direction: column; gap: 0.25rem; }
+        .sidebar nav a {
+            padding: 0.7rem 0.9rem; border-radius: 8px; color: #888;
+            font-size: 0.9rem; transition: all 0.15s;
+        }
+        .sidebar nav a:hover, .sidebar nav a.active {
+            background: #1e1e2e; color: #e1e1e8;
+        }
+        .sidebar nav a.active { color: #6c63ff; font-weight: 600; }
+        .sidebar .logout-btn {
+            margin-top: auto; padding: 0.7rem 0.9rem; border-radius: 8px;
+            color: #666; font-size: 0.85rem; cursor: pointer; border: none;
+            background: none; text-align: left; width: 100%;
+        }
+        .sidebar .logout-btn:hover { color: #ff6b6b; background: #1e1e2e; }
+        .sidebar .user-badge {
+            padding: 0.7rem 0; margin-top: 2rem;
+            border-top: 1px solid #2a2a3a; font-size: 0.8rem; color: #666;
+        }
+        .main-content { flex: 1; padding: 2rem; overflow-y: auto; }
+        .main-content h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+        .main-content .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
+
+        /* Cards */
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem; margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: #1a1a24; border-radius: 12px; padding: 1.25rem;
+            border: 1px solid #2a2a3a;
+        }
+        .stat-card .label { font-size: 0.8rem; color: #888; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; }
+
+        .card {
+            background: #1a1a24; border-radius: 12px;
+            border: 1px solid #2a2a3a; padding: 1.5rem; margin-bottom: 1rem;
+        }
+        .card h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+
+        /* Tables */
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { text-align: left; padding: 0.7rem 0.5rem; color: #888;
+             font-weight: 500; border-bottom: 1px solid #2a2a3a; }
+        td { padding: 0.7rem 0.5rem; border-bottom: 1px solid #1e1e2e; }
+
+        /* Forms */
+        input, select, textarea {
+            width: 100%; padding: 0.7rem 0.9rem;
+            background: #12121a; border: 1px solid #2a2a3a;
+            border-radius: 8px; color: #e1e1e8; font-size: 0.9rem;
+            margin-bottom: 0.75rem; outline: none; font-family: inherit;
+        }
+        input:focus, select:focus, textarea:focus { border-color: #6c63ff; }
+        textarea { min-height: 80px; resize: vertical; }
+        label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.3rem; }
+        .form-row { margin-bottom: 0.75rem; }
+
+        /* Buttons */
+        .btn {
+            padding: 0.6rem 1.2rem; border-radius: 8px; border: none;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer;
+            transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.4rem;
+        }
+        .btn-primary { background: linear-gradient(135deg, #6c63ff, #8b5cf6); color: #fff; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-danger { background: #dc2626; color: #fff; }
+        .btn-danger:hover { background: #b91c1c; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+        .btn-outline { background: transparent; border: 1px solid #2a2a3a; color: #ccc; }
+        .btn-outline:hover { border-color: #6c63ff; color: #fff; }
+        .btn-success { background: #059669; color: #fff; }
+        .btn-success:hover { background: #047857; }
+
+        .badge {
+            padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;
+        }
+        .badge-green { background: #065f46; color: #6ee7b7; }
+        .badge-red { background: #7f1d1d; color: #fca5a5; }
+        .badge-yellow { background: #713f12; color: #fcd34d; }
+        .badge-blue { background: #1e3a5f; color: #93c5fd; }
+
+        .flex { display: flex; gap: 0.75rem; align-items: center; }
+        .flex-wrap { flex-wrap: wrap; }
+        .mt-1 { margin-top: 1rem; }
+        .mb-1 { margin-bottom: 1rem; }
+        .gap-1 { gap: 0.5rem; }
+        .text-center { text-align: center; }
+        .color-success { color: #6ee7b7; }
+        .color-danger { color: #fca5a5; }
+
+        .loading { text-align: center; padding: 3rem; color: #666; }
+
+        .hidden { display: none !important; }
+        .tab-bar { display: flex; gap: 0.25rem; margin-bottom: 1.5rem; }
+        .tab-bar button {
+            padding: 0.5rem 1rem; border-radius: 6px; border: none;
+            background: none; color: #888; font-size: 0.85rem; cursor: pointer;
+        }
+        .tab-bar button.active { background: #1e1e2e; color: #fff; }
+        .tab-bar button:hover { color: #e1e1e8; }
+
+        .toast {
+            position: fixed; bottom: 2rem; right: 2rem;
+            background: #1a1a24; border: 1px solid #2a2a3a; border-radius: 10px;
+            padding: 1rem 1.5rem; color: #e1e1e8; font-size: 0.9rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4); z-index: 1000;
+            display: none;
+        }
+        .toast.show { display: block; animation: slideIn 0.3s; }
+        @keyframes slideIn { from { transform: translateY(1rem); opacity: 0; } }
+
+        @media (max-width: 768px) {
+            .sidebar { width: 100%; border-right: none; border-bottom: 1px solid #2a2a3a; }
+            .app-container { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- Login -->
+    <div id="loginPage" class="login-page">
+        <div class="login-box">
+            <h1>🔐 Rupeewa Admin</h1>
+            <p>Sign in to manage your site</p>
+            <input type="text" id="loginUser" placeholder="Username" autocomplete="username">
+            <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password">
+            <button onclick="login()">Sign In</button>
+            <div id="loginError" class="login-error"></div>
+        </div>
+    </div>
+
+    <!-- App -->
+    <div id="appContainer" class="app-container hidden">
+        <!-- Sidebar -->
+        <div class="sidebar" style="display:flex;flex-direction:column;">
+            <h2><span>◆</span> Rupeewa</h2>
+            <nav>
+                <a href="#" data-page="dashboard" class="active" onclick="navigate('dashboard')">📊 Dashboard</a>
+                <a href="#" data-page="articles" onclick="navigate('articles')">📝 Articles</a>
+                <a href="#" data-page="sources" onclick="navigate('sources')">📡 Sources</a>
+                <a href="#" data-page="seo" onclick="navigate('seo')">🔍 SEO Settings</a>
+                <a href="#" data-page="build" onclick="navigate('build')">🚀 Build</a>
+                <a href="#" data-page="subscribers" onclick="navigate('subscribers')">📧 Subscribers</a>
+            </nav>
+            <div class="user-badge" id="userBadge">admin</div>
+            <button class="logout-btn" onclick="logout()">🚪 Sign Out</button>
+        </div>
+
+        <!-- Main -->
+        <div class="main-content">
+            <div id="pageContent"></div>
+        </div>
+    </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+let API = '';
+let token = localStorage.getItem('token') || '';
+let currentPage = 'dashboard';
+
+async function api(method, path, body) {
+    const opts = { method, headers: {} };
+    if (token) opts.headers['Authorization'] = `Bearer ${token}`;
+    if (body instanceof FormData) {
+        opts.body = body;
+    } else if (body) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(body);
+    }
+    const res = await fetch('/api' + path, opts);
+    if (res.status === 401) { token = ''; localStorage.removeItem('token'); showLogin(); return null; }
+    const data = await res.json();
+    if (!res.ok) { toast(data.detail || 'Error'); return null; }
+    return data;
+}
+
+function showLogin() {
+    document.getElementById('loginPage').classList.remove('hidden');
+    document.getElementById('appContainer').classList.add('hidden');
+}
+
+function showApp() {
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('appContainer').classList.remove('hidden');
+}
+
+async function login() {
+    const user = document.getElementById('loginUser').value;
+    const pass = document.getElementById('loginPass').value;
+    const form = new FormData();
+    form.append('username', user);
+    form.append('password', pass);
+    const data = await api('POST', '/auth/login', form);
+    if (data && data.access_token) {
+        token = data.access_token;
+        localStorage.setItem('token', token);
+        document.getElementById('userBadge').textContent = data.username || user;
+        showApp();
+        navigate('dashboard');
+    } else {
+        document.getElementById('loginError').textContent = 'Invalid credentials';
+    }
+}
+
+function logout() {
+    token = '';
+    localStorage.removeItem('token');
+    showLogin();
+}
+
+function navigate(page) {
+    currentPage = page;
+    document.querySelectorAll('.sidebar nav a').forEach(a => {
+        a.classList.toggle('active', a.dataset.page === page);
+    });
+    loadPage(page);
+}
+
+function loadPage(page) {
+    const el = document.getElementById('pageContent');
+    el.innerHTML = '<div class="loading">Loading...</div>';
+    if (page === 'dashboard') loadDashboard(el);
+    else if (page === 'articles') loadArticles(el);
+    else if (page === 'sources') loadSources(el);
+    else if (page === 'seo') loadSeo(el);
+    else if (page === 'build') loadBuild(el);
+    else if (page === 'subscribers') loadSubscribers(el);
+}
+
+// ─── DASHBOARD ─────────────────────────────────────────────────────
+
+async function loadDashboard(el) {
+    const data = await api('GET', '/dashboard');
+    if (!data) { el.innerHTML = '<p>Failed to load dashboard</p>'; return; }
+    
+    el.innerHTML = `
+        <h1>📊 Dashboard</h1>
+        <p class="subtitle">Site overview at ${data.now ? new Date(data.now).toLocaleString() : 'now'}</p>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="label">Articles (current build)</div>
+                <div class="value">${data.build.article_count || 0}</div></div>
+            <div class="stat-card"><div class="label">Sources (active)</div>
+                <div class="value">${data.build.source_count || 0}</div></div>
+            <div class="stat-card"><div class="label">Site Size</div>
+                <div class="value">${(data.build.index_size / 1024).toFixed(0)} KB</div></div>
+            <div class="stat-card"><div class="label">Newsletter Subs</div>
+                <div class="value">${data.subscribers || 0}</div></div>
+            <div class="stat-card"><div class="label">Visits (7d)</div>
+                <div class="value">${data.visits_7d || 0}</div></div>
+            <div class="stat-card"><div class="label">Last Build</div>
+                <div class="value" style="font-size:0.9rem">${data.build.last_build !== 'Never' ? new Date(data.build.last_build).toLocaleString() : 'Never'}</div></div>
+        </div>
+        ${data.recent_builds && data.recent_builds.length ? `
+        <div class="card">
+            <h3>Recent Builds</h3>
+            <div class="table-wrap"><table>
+                <tr><th>Time</th><th>Status</th><th>Articles</th></tr>
+                ${data.recent_builds.map(b => `
+                    <tr>
+                        <td>${b.started ? new Date(b.started).toLocaleString() : '-'}</td>
+                        <td><span class="badge ${b.status === 'success' ? 'badge-green' : b.status === 'failed' ? 'badge-red' : 'badge-yellow'}">${b.status}</span></td>
+                        <td>${b.articles || 0}</td>
+                    </tr>
+                `).join('')}
+            </table></div>
+        </div>` : ''}
+        <div class="flex gap-1">
+            <button class="btn btn-primary" onclick="navigate('build')">🚀 Trigger Build</button>
+            <button class="btn btn-outline" onclick="window.open('https://rupeewa.vercel.app', '_blank')">🌐 View Site</button>
+        </div>
+    `;
+}
+
+// ─── ARTICLES ──────────────────────────────────────────────────────
+
+async function loadArticles(el) {
+    const data = await api('GET', '/articles?limit=200');
+    if (!data) { el.innerHTML = '<p>Failed to load articles</p>'; return; }
+    
+    el.innerHTML = `
+        <h1>📝 Articles</h1>
+        <p class="subtitle">${data.total} articles from latest build</p>
+        <div class="card">
+            <div class="table-wrap"><table>
+                <tr><th>Title</th><th>Featured</th><th>Hidden</th><th>Actions</th></tr>
+                ${data.articles.map((a, i) => `
+                    <tr>
+                        <td style="max-width:350px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                            <a href="${a.url}" target="_blank" title="${a.title}">${a.title.substring(0, 60)}${a.title.length > 60 ? '...' : ''}</a>
+                        </td>
+                        <td><span class="badge ${a.is_featured ? 'badge-green' : 'badge-yellow'}">${a.is_featured ? '★' : '☆'}</span></td>
+                        <td>${a.is_hidden ? '❌' : '👁️'}</td>
+                        <td>
+                            <button class="btn btn-sm ${a.is_featured ? 'btn-outline' : 'btn-primary'}" onclick="toggleFeatured('${a.url.replace(/'/g, "\\'")}', ${!a.is_featured})">${a.is_featured ? 'Unfeature' : 'Feature'}</button>
+                            <button class="btn btn-sm btn-danger" onclick="toggleHidden('${a.url.replace(/'/g, "\\'")}', ${!a.is_hidden})">${a.is_hidden ? 'Show' : 'Hide'}</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </table></div>
+        </div>
+    `;
+}
+
+async function toggleFeatured(url, featured) {
+    const form = new FormData();
+    form.append('url', url);
+    form.append('is_featured', featured);
+    form.append('is_hidden', false);
+    const data = await api('POST', '/articles/override', form);
+    if (data) { toast(featured ? '⭐ Featured!' : 'Unfeatured'); loadPage('articles'); }
+}
+
+async function toggleHidden(url, hidden) {
+    const form = new FormData();
+    form.append('url', url);
+    form.append('is_featured', false);
+    form.append('is_hidden', hidden);
+    const data = await api('POST', '/articles/override', form);
+    if (data) { toast(hidden ? '🙈 Hidden' : '👁️ Visible'); loadPage('articles'); }
+}
+
+// ─── SOURCES ───────────────────────────────────────────────────────
+
+async function loadSources(el) {
+    const data = await api('GET', '/sources');
+    if (!data) { el.innerHTML = '<p>Failed to load sources</p>'; return; }
+    
+    el.innerHTML = `
+        <h1>📡 RSS Sources</h1>
+        <p class="subtitle">${data.count || Object.keys(data.build_sources || {}).length} sources configured</p>
+        <div class="card">
+            <h3>Add Source</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr 100px;gap:0.5rem;">
+                <input type="text" id="srcName" placeholder="Source name (e.g., TechCrunch)">
+                <input type="text" id="srcUrl" placeholder="RSS URL">
+                <input type="number" id="srcLimit" value="20" min="1" max="100">
+            </div>
+            <button class="btn btn-primary mt-1" onclick="addSource()">+ Add Source</button>
+        </div>
+        <div class="card">
+            <h3>Active Sources</h3>
+            <div class="table-wrap"><table>
+                <tr><th>Name</th><th>RSS URL</th><th>Limit</th><th>Action</th></tr>
+                ${Object.entries(data.build_sources || {}).map(([name, url]) => `
+                    <tr>
+                        <td><strong>${name}</strong></td>
+                        <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis">${url}</td>
+                        <td>—</td>
+                        <td><span class="badge badge-blue">build.py</span></td>
+                    </tr>
+                `).join('')}
+                ${(data.db_sources || []).map(s => `
+                    <tr>
+                        <td><strong>${s.name}</strong></td>
+                        <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis">${s.rss_url}</td>
+                        <td>${s.article_limit}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteSource(${s.id})">Delete</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </table></div>
+        </div>
+    `;
+}
+
+async function addSource() {
+    const name = document.getElementById('srcName').value;
+    const url = document.getElementById('srcUrl').value;
+    const limit = document.getElementById('srcLimit').value;
+    if (!name || !url) { toast('Name and URL required'); return; }
+    const form = new FormData();
+    form.append('name', name);
+    form.append('rss_url', url);
+    form.append('article_limit', limit);
+    const data = await api('POST', '/sources/add', form);
+    if (data) { toast(`✅ ${name} added!`); document.getElementById('srcName').value = ''; document.getElementById('srcUrl').value = ''; loadPage('sources'); }
+}
+
+async function deleteSource(id) {
+    if (!confirm('Delete this source?')) return;
+    const data = await api('DELETE', `/sources/${id}`);
+    if (data) { toast('🗑️ Deleted'); loadPage('sources'); }
+}
+
+// ─── SEO SETTINGS ──────────────────────────────────────────────────
+
+async function loadSeo(el) {
+    const data = await api('GET', '/seo');
+    if (!data) { el.innerHTML = '<p>Failed to load SEO settings</p>'; return; }
+    
+    el.innerHTML = `
+        <h1>🔍 SEO Settings</h1>
+        <p class="subtitle">Overrides for site meta tags. Leave blank to use defaults from build.py</p>
+        <div class="card">
+            <div class="form-row">
+                <label>Site Name</label>
+                <input type="text" id="seo_site_name" value="${data.site_name || 'Rupeewa News Daily'}">
+            </div>
+            <div class="form-row">
+                <label>Site Description</label>
+                <textarea id="seo_site_description">${data.site_description || ''}</textarea>
+            </div>
+            <div class="form-row">
+                <label>Keywords</label>
+                <input type="text" id="seo_site_keywords" value="${data.site_keywords || ''}">
+            </div>
+            <div class="form-row">
+                <label>OG Title</label>
+                <input type="text" id="seo_og_title" value="${data.og_title || ''}">
+            </div>
+            <div class="form-row">
+                <label>OG Description</label>
+                <textarea id="seo_og_description">${data.og_description || ''}</textarea>
+            </div>
+            <div class="form-row">
+                <label>Twitter Handle (without @)</label>
+                <input type="text" id="seo_twitter_handle" value="${data.twitter_handle || ''}">
+            </div>
+            <div class="form-row">
+                <label>Google Analytics ID (GA4 - G-XXXXXXXXXX)</label>
+                <input type="text" id="seo_google_analytics_id" value="${data.google_analytics_id || ''}" placeholder="G-XXXXXXXXXX">
+            </div>
+            <div class="form-row">
+                <label>Custom Head HTML (injected before &lt;/head&gt;)</label>
+                <textarea id="seo_custom_head_html" style="min-height:100px;font-family:monospace;">${data.custom_head_html || ''}</textarea>
+            </div>
+            <button class="btn btn-primary" onclick="saveSeo()">💾 Save Settings</button>
+        </div>
+        <div class="card">
+            <h3>Current SEO Score (from live site)</h3>
+            <div class="flex flex-wrap gap-1">
+                <span class="badge badge-green">✅ llms.txt</span>
+                <span class="badge badge-green">✅ robots.txt</span>
+                <span class="badge badge-green">✅ sitemap.xml</span>
+                <span class="badge badge-green">✅ Open Graph</span>
+                <span class="badge badge-green">✅ Twitter Cards</span>
+                <span class="badge badge-green">✅ JSON-LD</span>
+                <span class="badge badge-green">✅ Speakable</span>
+                <span class="badge badge-green">✅ FAQPage</span>
+                <span class="badge badge-green">✅ Canonical URL</span>
+                <span class="badge badge-blue">🔍 Google Search Console</span>
+            </div>
+        </div>
+    `;
+}
+
+async function saveSeo() {
+    const settings = {
+        site_name: document.getElementById('seo_site_name').value,
+        site_description: document.getElementById('seo_site_description').value,
+        site_keywords: document.getElementById('seo_site_keywords').value,
+        og_title: document.getElementById('seo_og_title').value,
+        og_description: document.getElementById('seo_og_description').value,
+        twitter_handle: document.getElementById('seo_twitter_handle').value,
+        google_analytics_id: document.getElementById('seo_google_analytics_id').value,
+        custom_head_html: document.getElementById('seo_custom_head_html').value,
+    };
+    const data = await api('POST', '/seo', settings);
+    if (data) toast('💾 SEO settings saved!');
+}
+
+// ─── BUILD ─────────────────────────────────────────────────────────
+
+async function loadBuild(el) {
+    const dashData = await api('GET', '/dashboard');
+    
+    el.innerHTML = `
+        <h1>🚀 Build Controls</h1>
+        <p class="subtitle">Trigger a site rebuild and deploy</p>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="label">Articles (current)</div>
+                <div class="value">${dashData?.build?.article_count || 0}</div></div>
+            <div class="stat-card"><div class="label">Sources</div>
+                <div class="value">${dashData?.build?.source_count || 0}</div></div>
+            <div class="stat-card"><div class="label">Last Build</div>
+                <div class="value" style="font-size:0.9rem">${dashData?.build?.last_build !== 'Never' ? new Date(dashData?.build?.last_build).toLocaleString() : 'Never'}</div></div>
+        </div>
+        <div style="text-align:center;padding: 2rem;">
+            <button class="btn btn-primary" style="font-size:1.1rem;padding:1rem 2rem;" onclick="triggerBuild()">🚀 Trigger Build + Deploy</button>
+            <p style="color:#666;margin-top:1rem;font-size:0.85rem;">Fetches latest RSS articles, builds index.html, commits & deploys to Vercel</p>
+        </div>
+        <div id="buildResult" class="hidden">
+            <div class="card"><h3>Build Output</h3>
+                <pre id="buildOutput" style="background:#0c0c12;padding:1rem;border-radius:8px;font-size:0.8rem;max-height:400px;overflow:auto;"></pre>
+            </div>
+        </div>
+        <div class="card" id="buildLogsCard">
+            <h3>Build History</h3>
+            <div id="buildLogs"><div class="loading">Loading...</div></div>
+        </div>
+    `;
+    loadBuildLogs();
+}
+
+async function loadBuildLogs() {
+    const data = await api('GET', '/build/logs');
+    const el = document.getElementById('buildLogs');
+    if (!data || !data.logs.length) { el.innerHTML = '<p style="color:#666">No builds yet</p>'; return; }
+    el.innerHTML = `<div class="table-wrap"><table>
+        <tr><th>Time</th><th>Status</th><th>Articles</th><th>Error</th></tr>
+        ${data.logs.map(l => `
+            <tr>
+                <td style="font-size:0.8rem">${l.started ? new Date(l.started).toLocaleString() : '-'}</td>
+                <td><span class="badge ${l.status === 'success' ? 'badge-green' : l.status === 'failed' ? 'badge-red' : 'badge-yellow'}">${l.status}</span></td>
+                <td>${l.articles || 0}</td>
+                <td style="font-size:0.8rem;color:#fca5a5;max-width:200px;overflow:hidden">${l.error || ''}</td>
+            </tr>
+        `).join('')}
+    </table></div>`;
+}
+
+async function triggerBuild() {
+    const resultDiv = document.getElementById('buildResult');
+    const outputPre = document.getElementById('buildOutput');
+    resultDiv.classList.remove('hidden');
+    outputPre.textContent = 'Building...';
+    
+    const data = await api('POST', '/build/trigger');
+    if (data) {
+        outputPre.textContent = data.output || 'Build completed';
+        if (data.error) outputPre.textContent += '\n\nErrors:\n' + data.error;
+        toast(data.status === 'success' ? '✅ Build successful!' : '❌ Build failed');
+        loadBuildLogs();
+    } else {
+        outputPre.textContent = 'Build failed to start';
+    }
+}
+
+// ─── SUBSCRIBERS ───────────────────────────────────────────────────
+
+async function loadSubscribers(el) {
+    const data = await api('GET', '/subscribers');
+    if (!data) { el.innerHTML = '<p>Failed to load subscribers</p>'; return; }
+    
+    el.innerHTML = `
+        <h1>📧 Newsletter Subscribers</h1>
+        <p class="subtitle">${data.total} total subscribers</p>
+        ${data.subscribers.length ? `
+        <div class="card">
+            <div class="table-wrap"><table>
+                <tr><th>Email</th><th>Subscribed</th><th>Active</th></tr>
+                ${data.subscribers.map(s => `
+                    <tr>
+                        <td>${s.email}</td>
+                        <td style="font-size:0.85rem">${new Date(s.subscribed_at).toLocaleDateString()}</td>
+                        <td><span class="badge ${s.is_active ? 'badge-green' : 'badge-red'}">${s.is_active ? '✅' : '❌'}</span></td>
+                    </tr>
+                `).join('')}
+            </table></div>
+        </div>` : '<div class="card"><p style="color:#666">No subscribers yet</p></div>'}
+    `;
+}
+
+// ─── TOAST ─────────────────────────────────────────────────────────
+
+function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─── INIT ──────────────────────────────────────────────────────────
+
+if (token) {
+    api('GET', '/auth/me').then(data => {
+        if (data) { showApp(); navigate('dashboard'); }
+        else showLogin();
+    });
+} else {
+    document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+    document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
+}
+</script>
+</body>
+</html>

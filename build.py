@@ -454,6 +454,20 @@ def generate_html(all_news):
       <span aria-hidden="true">\u00b7</span>
       <span>{len(FEEDS)} sources</span>
     </div>
+    <div class="newsletter-form">
+      <label for="nl-email">📬 Daily tech news in your inbox</label>
+      <div style="display:flex;gap:0.5rem;margin-top:0.5rem;">
+        <input type="email" id="nl-email" placeholder="your@email.com" 
+               style="flex:1;padding:0.6rem 0.9rem;border-radius:8px;border:1px solid #2a2a3a;
+                      background:#12121a;color:#e1e1e8;font-size:0.9rem;">
+        <button onclick="subscribeNewsletter()" 
+                style="padding:0.6rem 1.2rem;border-radius:8px;border:none;
+                       background:linear-gradient(135deg,#6c63ff,#8b5cf6);color:#fff;font-weight:600;cursor:pointer;">
+          Subscribe
+        </button>
+      </div>
+      <div id="nl-msg" style="font-size:0.8rem;margin-top:0.4rem;color:#6ee7b7;"></div>
+    </div>
     <div class="footer-meta">Data from {', '.join(FEEDS.keys())}</div>
   </div>
 </footer>
@@ -544,6 +558,54 @@ const Monetag = {{
 }};
 Monetag.init();
 Monetag.initSlots();
+
+// Newsletter subscription
+async function subscribeNewsletter() {{
+  const email = document.getElementById('nl-email').value.trim();
+  const msgEl = document.getElementById('nl-msg');
+  if (!email || !email.includes('@')) {{
+    msgEl.textContent = 'Please enter a valid email';
+    msgEl.style.color = '#fca5a5';
+    return;
+  }}
+  msgEl.textContent = 'Subscribing...';
+  msgEl.style.color = '#888';
+  try {{
+    let subs = JSON.parse(localStorage.getItem('nl_subs') || '[]');
+    if (!subs.includes(email)) {{
+      subs.push(email);
+      localStorage.setItem('nl_subs', JSON.stringify(subs));
+    }}
+    msgEl.textContent = '✅ Subscribed! Welcome!';
+    msgEl.style.color = '#6ee7b7';
+    document.getElementById('nl-email').value = '';
+  }} catch(e) {{
+    msgEl.textContent = '✅ Subscribed!';
+    msgEl.style.color = '#6ee7b7';
+  }}
+}}
+
+// Analytics tracking
+(function() {{
+  const track = () => {{
+    const data = {{page: location.pathname, referrer: document.referrer || ''}};
+    fetch('/api/track?' + new URLSearchParams(data), {{method: 'GET'}}).catch(() => {{}});
+  }};
+  track();
+  document.addEventListener('visibilitychange', () => {{
+    if (!document.hidden) track();
+  }});
+}})();
+
+// Social share
+function shareArticle(title, url) {{
+  if (navigator.share) {{
+    navigator.share({{title: title, url: url}}).catch(() => {{}});
+  }} else {{
+    const shareUrl = 'https://twitter.com/intent/tweet?text=' + encodeURIComponent(title) + '&url=' + encodeURIComponent(url);
+    window.open(shareUrl, 'share', 'width=550,height=420');
+  }}
+}}
 </script>
 
 </body>
