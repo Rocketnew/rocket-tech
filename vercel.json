@@ -3,7 +3,7 @@
   "builds": [
     { "src": "*.html", "use": "@vercel/static" },
     { "src": "style.css", "use": "@vercel/static" },
-    { "src": "*.{css,js,jpg,png,svg,ico,xml,txt}", "use": "@vercel/static" },
+    { "src": "*.{css,js,json,jpg,png,svg,ico,xml,txt}", "use": "@vercel/static" },
     { "src": "api/index.py", "use": "@vercel/python" }
   ],
   "routes": [
@@ -12,6 +12,7 @@
     { "src": "/sitemap\\.xml", "dest": "/sitemap.xml" },
     { "src": "/llms\\.txt", "dest": "/llms.txt" },
     { "src": "/style\\.css", "dest": "/style.css" },
+    { "src": "/notification\\.json", "dest": "/notification.json" },
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/(.*\\.(css|js|png|jpg|svg|ico|json|xml|txt))$", "dest": "/$1" },
     { "src": "(/google.*\\.html)$", "dest": "$1" },
