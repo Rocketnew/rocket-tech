@@ -321,17 +321,17 @@ async function loadDashboard(el) {
         <p class="subtitle">Site overview at ${data.now ? new Date(data.now).toLocaleString() : 'now'}</p>
         <div class="stats-grid">
             <div class="stat-card"><div class="label">Articles (current build)</div>
-                <div class="value">${data.build.article_count || 0}</div></div>
+                <div class="value">${data.article_count || 0}</div></div>
             <div class="stat-card"><div class="label">Sources (active)</div>
-                <div class="value">${data.build.source_count || 0}</div></div>
+                <div class="value">${data.source_count || 0}</div></div>
             <div class="stat-card"><div class="label">Site Size</div>
-                <div class="value">${(data.build.index_size / 1024).toFixed(0)} KB</div></div>
+                <div class="value">${(data.index_size / 1024).toFixed(0)} KB</div></div>
             <div class="stat-card"><div class="label">Newsletter Subs</div>
                 <div class="value">${data.subscribers || 0}</div></div>
             <div class="stat-card"><div class="label">Visits (7d)</div>
                 <div class="value">${data.visits_7d || 0}</div></div>
             <div class="stat-card"><div class="label">Last Build</div>
-                <div class="value" style="font-size:0.9rem">${data.build.last_build !== 'Never' ? new Date(data.build.last_build).toLocaleString() : 'Never'}</div></div>
+                <div class="value" style="font-size:0.9rem">${data.last_build !== 'Never' ? new Date(data.last_build).toLocaleString() : 'Never'}</div></div>
         </div>
         ${data.recent_builds && data.recent_builds.length ? `
         <div class="card">
@@ -541,11 +541,11 @@ async function loadBuild(el) {
         <p class="subtitle">Trigger a site rebuild and deploy</p>
         <div class="stats-grid">
             <div class="stat-card"><div class="label">Articles (current)</div>
-                <div class="value">${dashData?.build?.article_count || 0}</div></div>
+                <div class="value">${dashData?.article_count || 0}</div></div>
             <div class="stat-card"><div class="label">Sources</div>
-                <div class="value">${dashData?.build?.source_count || 0}</div></div>
+                <div class="value">${dashData?.source_count || 0}</div></div>
             <div class="stat-card"><div class="label">Last Build</div>
-                <div class="value" style="font-size:0.9rem">${dashData?.build?.last_build !== 'Never' ? new Date(dashData?.build?.last_build).toLocaleString() : 'Never'}</div></div>
+                <div class="value" style="font-size:0.9rem">${dashData?.last_build !== 'Never' ? new Date(dashData?.last_build).toLocaleString() : 'Never'}</div></div>
         </div>
         <div style="text-align:center;padding: 2rem;">
             <button class="btn btn-primary" style="font-size:1.1rem;padding:1rem 2rem;" onclick="triggerBuild()">🚀 Trigger Build + Deploy</button>
@@ -615,7 +615,7 @@ async function loadSubscribers(el) {
                     <tr>
                         <td>${escapeHtml(s.email)}</td>
                         <td style="font-size:0.85rem">${new Date(s.subscribed_at).toLocaleDateString()}</td>
-                        <td><span class="badge ${s.is_active ? 'badge-green' : 'badge-red'}">${s.is_active ? '✅' : '❌'}</span></td>
+                        <td><span class="badge badge-green">✅</span></td>
                     </tr>
                 `).join('')}
             </table></div>
