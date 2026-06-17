@@ -402,6 +402,9 @@ def generate_html(all_news):
 <!-- Reading Progress Bar -->
 <div id="progress-bar" role="progressbar" aria-label="Reading progress"></div>
 
+<!-- Site Notification Banner -->
+<div id="site-notification" class="site-notification" style="display:none"></div>
+
 <header>
   <nav class="nav-inner" aria-label="Main navigation">
     <div class="nav-left">
@@ -736,6 +739,28 @@ function showPushStatus(enabled) {{
 
 // Initialize push notifications
 document.addEventListener('DOMContentLoaded', initPushNotifications);
+
+// ===== SITE NOTIFICATION BANNER =====
+fetch('/notification.json?v=' + Date.now())
+  .then(r => r.json())
+  .then(n => {{
+    if (!n.enabled) return;
+    if (localStorage.getItem('sn_dismissed_' + n.id || '')) return;
+    const banner = document.getElementById('site-notification');
+    if (!banner) return;
+    
+    const types = {{update: '🔄', news: '📢', alert: '⚠️', promo: '🔥'}};
+    const icon = types[n.type] || '📢';
+    var linkHtml = n.link ? '<a href="' + n.link + '" class="sn-link" target="_blank">' + (n.link_text || 'Learn More') + '</a>' : '';
+    
+    banner.innerHTML = '<div class="sn-inner ' + n.type + '">' +
+      '<span class="sn-icon">' + icon + '</span>' +
+      '<span class="sn-msg">' + n.message + '</span>' +
+      linkHtml +
+      '<button class="sn-close" onclick="this.parentElement.parentElement.remove();localStorage.setItem(\'sn_dismissed_' + (n.id || '') + '\',\'1\')">&times;</button>' +
+    '</div>';
+    banner.style.display = '';
+  }}).catch(() => {{}});
 </script>
 
 </body>
