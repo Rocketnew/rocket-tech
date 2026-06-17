@@ -1,4 +1,9 @@
 {
+  "admin_user": "Vikash",
+  "admin_pass_hash": "pbkdf2_sha256$600000$eeSQj4lWHLK/xHI7rh/Cn5+Gu9S6NzDMT+hktqcGPCI=$vjFf7aqJ0tWD+oPy4toatzYloPHGPYt5EM555QGfNfg=",
+  "article_overrides": [],
+  "db_sources": [],
+  "build_logs": [],
   "site_name": "Good",
   "site_description": "Your daily dose of tech news \u2014 AI, startups, gadgets, and developer stories curated from top sources",
   "site_keywords": "tech news, AI, artificial intelligence, startups, gadgets, cybersecurity, programming, developer news",
