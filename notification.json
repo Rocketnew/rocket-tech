@@ -1,7 +1,8 @@
 {
-  "enabled": false,
-  "type": "update",
-  "message": "",
-  "link": "",
-  "link_text": ""
+  "enabled": true,
+  "id": "test1",
+  "type": "promo",
+  "message": "🎉 Rupeewa App — Refer & Earn! WhatsApp tasks karo aur ₹100+ withdraw!",
+  "link": "https://rupeewa.com/?invite=MNTAYR",
+  "link_text": "Join Now 🚀"
 }
