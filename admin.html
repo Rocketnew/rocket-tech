@@ -385,20 +385,12 @@ async function loadArticles(el) {
 }
 
 async function toggleFeatured(url, featured) {
-    const form = new FormData();
-    form.append('url', url);
-    form.append('is_featured', featured);
-    form.append('is_hidden', false);
-    const data = await api('POST', '/articles/override', form);
+    const data = await api('POST', '/articles/override', { url: url, is_featured: featured, is_hidden: false });
     if (data) { toast(featured ? '⭐ Featured!' : 'Unfeatured'); loadPage('articles'); }
 }
 
 async function toggleHidden(url, hidden) {
-    const form = new FormData();
-    form.append('url', url);
-    form.append('is_featured', false);
-    form.append('is_hidden', hidden);
-    const data = await api('POST', '/articles/override', form);
+    const data = await api('POST', '/articles/override', { url: url, is_featured: false, is_hidden: hidden });
     if (data) { toast(hidden ? '🙈 Hidden' : '👁️ Visible'); loadPage('articles'); }
 }
 
@@ -452,11 +444,7 @@ async function addSource() {
     const url = document.getElementById('srcUrl').value;
     const limit = document.getElementById('srcLimit').value;
     if (!name || !url) { toast('Name and URL required'); return; }
-    const form = new FormData();
-    form.append('name', name);
-    form.append('rss_url', url);
-    form.append('article_limit', limit);
-    const data = await api('POST', '/sources/add', form);
+    const data = await api('POST', '/sources/add', { name: name, rss_url: url, article_limit: limit });
     if (data) { toast(`✅ ${name} added!`); document.getElementById('srcName').value = ''; document.getElementById('srcUrl').value = ''; loadPage('sources'); }
 }
 
