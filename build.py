@@ -757,7 +757,7 @@ fetch('/notification.json?v=' + Date.now())
       '<span class="sn-icon">' + icon + '</span>' +
       '<span class="sn-msg">' + n.message + '</span>' +
       linkHtml +
-      '<button class="sn-close" onclick="this.parentElement.parentElement.remove();localStorage.setItem(\'sn_dismissed_' + (n.id || '') + '\',\'1\')">&times;</button>' +
+      '<button class="sn-close" onclick="var p=this.parentElement.parentElement;p.parentElement.removeChild(p);localStorage.setItem(&quot;sn_dismissed_' + (n.id || '') + '&quot;,&quot;1&quot;)">&times;</button>' +
     '</div>';
     banner.style.display = '';
   }}).catch(() => {{}});
