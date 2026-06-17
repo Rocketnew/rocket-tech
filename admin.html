@@ -76,58 +76,103 @@
         .main-content h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
         .main-content .subtitle { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
 
-        /* Cards */
+        /* Cards & Stats - Premium Dashboard */
         .stats-grid {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1rem; margin-bottom: 2rem;
         }
         .stat-card {
-            background: #1a1a24; border-radius: 12px; padding: 1.25rem;
+            position: relative; overflow: hidden;
+            background: #1a1a24; border-radius: 14px; padding: 1.4rem 1.5rem;
             border: 1px solid #2a2a3a;
+            transition: transform 0.25s cubic-bezier(.4,0,.2,1), box-shadow 0.25s ease;
         }
-        .stat-card .label { font-size: 0.8rem; color: #888; }
-        .stat-card .value { font-size: 1.8rem; font-weight: 700; margin-top: 0.25rem; }
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 30px rgba(108, 99, 255, 0.12);
+        }
+        .stat-card .stat-icon {
+            font-size: 1.8rem; margin-bottom: 0.6rem; display: inline-block;
+        }
+        .stat-card .stat-content { position: relative; z-index: 1; }
+        .stat-card .label { font-size: 0.75rem; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card .value { font-size: 1.8rem; font-weight: 700; margin-top: 0.15rem;
+            background: linear-gradient(135deg, #e1e1e8, #a5a5b8); -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent; background-clip: text; }
+        /* Per-card accent glow */
+        .stat-card::after {
+            content: ''; position: absolute; top: -50%; right: -50%;
+            width: 100%; height: 100%; border-radius: 50%;
+            opacity: 0.04; pointer-events: none; transition: opacity 0.3s;
+        }
+        .stat-card:hover::after { opacity: 0.08; }
+        .stat-accent-purple::after { background: radial-gradient(circle, #6c63ff, transparent); }
+        .stat-accent-green::after { background: radial-gradient(circle, #059669, transparent); }
+        .stat-accent-blue::after { background: radial-gradient(circle, #3b82f6, transparent); }
+        .stat-accent-amber::after { background: radial-gradient(circle, #f59e0b, transparent); }
+        .stat-accent-rose::after { background: radial-gradient(circle, #ec4899, transparent); }
+        .stat-accent-cyan::after { background: radial-gradient(circle, #06b6d4, transparent); }
+        .stat-card .stat-trend {
+            font-size: 0.75rem; margin-top: 0.4rem; display: flex; align-items: center; gap: 0.3rem;
+        }
+        .stat-trend.up { color: #6ee7b7; }
+        .stat-trend.down { color: #fca5a5; }
+        .stat-trend.neutral { color: #888; }
+
+        .dash-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;
+        }
+        .dash-header h1 { font-size: 1.6rem; margin-bottom: 0; }
+        .dash-header .dash-greeting { font-size: 0.85rem; color: #888; }
+        .dash-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 
         .card {
-            background: #1a1a24; border-radius: 12px;
-            border: 1px solid #2a2a3a; padding: 1.5rem; margin-bottom: 1rem;
+            background: linear-gradient(135deg, #1a1a24 0%, #1e1e2e 100%);
+            border-radius: 14px; border: 1px solid #2a2a3a;
+            padding: 1.5rem; margin-bottom: 1rem;
+            transition: box-shadow 0.2s;
         }
-        .card h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+        .card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
+        .card h3 { font-size: 1.05rem; margin-bottom: 1rem; color: #e1e1e8; display: flex; align-items: center; gap: 0.4rem; }
 
         /* Tables */
-        .table-wrap { overflow-x: auto; }
+        .table-wrap { overflow-x: auto; border-radius: 10px; }
         table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th { text-align: left; padding: 0.7rem 0.5rem; color: #888;
-             font-weight: 500; border-bottom: 1px solid #2a2a3a; }
-        td { padding: 0.7rem 0.5rem; border-bottom: 1px solid #1e1e2e; }
+        th { text-align: left; padding: 0.75rem 0.6rem; color: #888;
+             font-weight: 500; border-bottom: 1px solid #2a2a3a; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.3px; }
+        td { padding: 0.75rem 0.6rem; border-bottom: 1px solid #1e1e2e; transition: background 0.15s; }
+        tr:hover td { background: rgba(108,99,255,0.03); }
 
         /* Forms */
         input, select, textarea {
             width: 100%; padding: 0.7rem 0.9rem;
             background: #12121a; border: 1px solid #2a2a3a;
-            border-radius: 8px; color: #e1e1e8; font-size: 0.9rem;
+            border-radius: 10px; color: #e1e1e8; font-size: 0.9rem;
             margin-bottom: 0.75rem; outline: none; font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
-        input:focus, select:focus, textarea:focus { border-color: #6c63ff; }
+        input:focus, select:focus, textarea:focus { border-color: #6c63ff; box-shadow: 0 0 0 3px rgba(108,99,255,0.1); }
         textarea { min-height: 80px; resize: vertical; }
-        label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.3rem; }
+        label { display: block; font-size: 0.85rem; color: #aaa; margin-bottom: 0.3rem; font-weight: 500; }
         .form-row { margin-bottom: 0.75rem; }
 
         /* Buttons */
         .btn {
-            padding: 0.6rem 1.2rem; border-radius: 8px; border: none;
+            padding: 0.6rem 1.2rem; border-radius: 10px; border: none;
             font-size: 0.85rem; font-weight: 600; cursor: pointer;
-            transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.4rem;
+            transition: all 0.2s cubic-bezier(.4,0,.2,1);
+            display: inline-flex; align-items: center; gap: 0.4rem;
         }
-        .btn-primary { background: linear-gradient(135deg, #6c63ff, #8b5cf6); color: #fff; }
-        .btn-primary:hover { opacity: 0.9; }
+        .btn-primary { background: linear-gradient(135deg, #6c63ff, #8b5cf6); color: #fff; box-shadow: 0 2px 10px rgba(108,99,255,0.2); }
+        .btn-primary:hover { opacity: 0.95; box-shadow: 0 4px 16px rgba(108,99,255,0.3); transform: translateY(-1px); }
         .btn-danger { background: #dc2626; color: #fff; }
-        .btn-danger:hover { background: #b91c1c; }
+        .btn-danger:hover { background: #b91c1c; transform: translateY(-1px); }
         .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
         .btn-outline { background: transparent; border: 1px solid #2a2a3a; color: #ccc; }
-        .btn-outline:hover { border-color: #6c63ff; color: #fff; }
+        .btn-outline:hover { border-color: #6c63ff; color: #fff; background: rgba(108,99,255,0.05); }
         .btn-success { background: #059669; color: #fff; }
-        .btn-success:hover { background: #047857; }
+        .btn-success:hover { background: #047857; transform: translateY(-1px); }
 
         .badge {
             padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;
@@ -315,30 +360,82 @@ function loadPage(page) {
 async function loadDashboard(el) {
     const data = await api('GET', '/dashboard');
     if (!data) { el.innerHTML = '<p>Failed to load dashboard</p>'; return; }
+
+    const now = new Date();
+    const hour = now.getHours();
+    const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+    
+    // Trend helpers
+    const hasSubs = data.subscribers > 0;
+    const hasArticles = data.article_count > 0;
     
     el.innerHTML = `
-        <h1>📊 Dashboard</h1>
-        <p class="subtitle">Site overview at ${data.now ? new Date(data.now).toLocaleString() : 'now'}</p>
+        <div class="dash-header">
+            <div>
+                <h1>📊 Dashboard</h1>
+                <div class="dash-greeting">${greeting}, Vikash · ${now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</div>
+            </div>
+            <div class="dash-actions">
+                <button class="btn btn-primary" onclick="navigate('build')" style="font-size:0.85rem">🚀 Trigger Build</button>
+                <button class="btn btn-outline" onclick="window.open('https://rupeewa.vercel.app', '_blank')">🌐 View Site</button>
+            </div>
+        </div>
         <div class="stats-grid">
-            <div class="stat-card"><div class="label">Articles (current build)</div>
-                <div class="value">${data.article_count || 0}</div></div>
-            <div class="stat-card"><div class="label">Sources (active)</div>
-                <div class="value">${data.source_count || 0}</div></div>
-            <div class="stat-card"><div class="label">Site Size</div>
-                <div class="value">${(data.index_size / 1024).toFixed(0)} KB</div></div>
-            <div class="stat-card"><div class="label">Newsletter Subs</div>
-                <div class="value">${data.subscribers || 0}</div></div>
-            <div class="stat-card"><div class="label">Visits (7d)</div>
-                <div class="value">${data.visits_7d || 0}</div></div>
-            <div class="stat-card"><div class="label">Last Build</div>
-                <div class="value" style="font-size:0.9rem">${data.last_build !== 'Never' ? new Date(data.last_build).toLocaleString() : 'Never'}</div></div>
+            <div class="stat-card stat-accent-purple">
+                <div class="stat-content">
+                    <div class="stat-icon">📰</div>
+                    <div class="label">Total Articles</div>
+                    <div class="value">${data.article_count || 0}</div>
+                    <div class="stat-trend neutral">📦 ${data.db_articles || 0} in database</div>
+                </div>
+            </div>
+            <div class="stat-card stat-accent-cyan">
+                <div class="stat-content">
+                    <div class="stat-icon">📡</div>
+                    <div class="label">Sources</div>
+                    <div class="value">${data.source_count || 0}</div>
+                    <div class="stat-trend ${data.sources > 0 ? 'up' : 'neutral'}">${data.sources > 0 ? '📡 ' + data.sources + ' total configured' : '⚙️ Add sources to get started'}</div>
+                </div>
+            </div>
+            <div class="stat-card stat-accent-amber">
+                <div class="stat-content">
+                    <div class="stat-icon">💾</div>
+                    <div class="label">Site Size</div>
+                    <div class="value">${(data.index_size / 1024).toFixed(0)} <span style="font-size:1rem;-webkit-text-fill-color:#888">KB</span></div>
+                    <div class="stat-trend neutral">📄 Generated from build</div>
+                </div>
+            </div>
+            <div class="stat-card stat-accent-green">
+                <div class="stat-content">
+                    <div class="stat-icon">📧</div>
+                    <div class="label">Subscribers</div>
+                    <div class="value">${data.subscribers || 0}</div>
+                    <div class="stat-trend ${hasSubs ? 'up' : 'neutral'}">${hasSubs ? '👥 Newsletter subscribers' : '⏳ No subscribers yet'}</div>
+                </div>
+            </div>
+            <div class="stat-card stat-accent-rose">
+                <div class="stat-content">
+                    <div class="stat-icon">👁️</div>
+                    <div class="label">Visits (7 days)</div>
+                    <div class="value">${data.visits_7d || 0}</div>
+                    <div class="stat-trend neutral">📊 Page views this week</div>
+                </div>
+            </div>
+            <div class="stat-card stat-accent-blue">
+                <div class="stat-content">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="label">Last Build</div>
+                    <div class="value" style="font-size:1.3rem;background:none;-webkit-text-fill-color:#e1e1e8">${data.last_build !== 'Never' ? new Date(data.last_build).toLocaleDateString() : 'Never'}</div>
+                    <div class="stat-trend neutral">${data.last_build !== 'Never' ? '🕐 ' + new Date(data.last_build).toLocaleTimeString() : 'Build today to publish'}</div>
+                </div>
+            </div>
         </div>
         ${data.recent_builds && data.recent_builds.length ? `
         <div class="card">
-            <h3>Recent Builds</h3>
+            <h3>📋 Recent Builds</h3>
             <div class="table-wrap"><table>
                 <tr><th>Time</th><th>Status</th><th>Articles</th></tr>
-                ${data.recent_builds.map(b => `
+                ${data.recent_builds.slice(0, 5).map(b => `
                     <tr>
                         <td>${b.started ? new Date(b.started).toLocaleString() : '-'}</td>
                         <td><span class="badge ${b.status === 'success' ? 'badge-green' : b.status === 'failed' ? 'badge-red' : 'badge-yellow'}">${b.status}</span></td>
@@ -347,10 +444,6 @@ async function loadDashboard(el) {
                 `).join('')}
             </table></div>
         </div>` : ''}
-        <div class="flex gap-1">
-            <button class="btn btn-primary" onclick="navigate('build')">🚀 Trigger Build</button>
-            <button class="btn btn-outline" onclick="window.open('https://rupeewa.vercel.app', '_blank')">🌐 View Site</button>
-        </div>
     `;
 }
 
