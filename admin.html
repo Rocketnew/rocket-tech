@@ -273,10 +273,7 @@ function showApp() {
 async function login() {
     const user = document.getElementById('loginUser').value;
     const pass = document.getElementById('loginPass').value;
-    const form = new FormData();
-    form.append('username', user);
-    form.append('password', pass);
-    const data = await api('POST', '/login', form);
+    const data = await api('POST', '/login', { username: user, password: pass });
     if (data && data.access_token) {
         token = data.access_token;
         localStorage.setItem('token', token);

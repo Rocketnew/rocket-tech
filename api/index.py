@@ -212,6 +212,14 @@ class handler(BaseHTTPRequestHandler):
                 _send_secure_json(self, {"error": "Too many attempts. Try again in 15 minutes."}, 429)
                 return
             params = parse_qs(body)
+            # Also support JSON body
+            if not params or not params.get('username', [''])[0]:
+                try:
+                    json_body = json.loads(body)
+                    if isinstance(json_body, dict):
+                        params = {k: [v] if not isinstance(v, list) else v for k, v in json_body.items()}
+                except (json.JSONDecodeError, TypeError):
+                    pass
             username = params.get('username', [''])[0]
             password = params.get('password', [''])[0]
             if username == ADMIN_USER and _verify_password(password, ADMIN_PASS_HASH):
