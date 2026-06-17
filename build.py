@@ -390,6 +390,35 @@ def generate_html(all_news):
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <!-- Search bar styles -->
+  <style>
+      .search-wrapper { margin: 1rem 0 0; position: relative; max-width: 480px; }
+      .search-input {
+          width: 100%; padding: 0.7rem 1rem 0.7rem 2.5rem; border-radius: 12px;
+          border: 1px solid #2a2a3a; background: #12121a; color: #e1e1e8;
+          font-size: 0.9rem; outline: none; transition: all 0.2s;
+          box-sizing: border-box;
+      }
+      .search-input:focus { border-color: #6c63ff; box-shadow: 0 0 0 3px rgba(108,99,255,0.1); }
+      .search-input::placeholder { color: #555; }
+      .search-results {
+          position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
+          background: #1a1a24; border: 1px solid #2a2a3a; border-radius: 12px;
+          margin-top: 4px; max-height: 360px; overflow-y: auto;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      }
+      .search-results a {
+          display: block; padding: 0.7rem 1rem; color: #e1e1e8; text-decoration: none;
+          border-bottom: 1px solid #1e1e2e; font-size: 0.85rem;
+          transition: background 0.1s;
+      }
+      .search-results a:last-child { border-bottom: none; }
+      .search-results a:hover { background: rgba(108,99,255,0.05); }
+      .search-results .sr-source { font-size: 0.7rem; color: #6c63ff; text-transform: uppercase; letter-spacing: 0.3px; }
+      .search-results .sr-title { display: block; margin-top: 2px; }
+      .search-results .sr-none { padding: 1rem; color: #666; text-align: center; font-size: 0.85rem; }
+      .search-results .sr-count { padding: 0.5rem 1rem; font-size: 0.75rem; color: #555; }
+  </style>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%237c3aed'/><stop offset='100%25' stop-color='%236366f1'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='%230a0a0f'/><text x='50' y='72' font-size='60' text-anchor='middle'>🚀</text></svg>">
   <!-- Monetag -->
   <meta name="monetag" content="f777923a656a6851a964b8cb54790337">
@@ -426,6 +455,11 @@ def generate_html(all_news):
     <div class="hero-header">
       <h1>Today's <span class="gradient-text">Tech</span></h1>
       <p>The latest news from across the tech world &mdash; curated daily.</p>
+      <!-- Search Bar -->
+      <div class="search-wrapper">
+        <input type="text" id="searchInput" class="search-input" placeholder="🔍 Search articles..." autocomplete="off" />
+        <div id="searchResults" class="search-results" style="display:none"></div>
+      </div>
     </div>
     <a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener" class="refer-card-link">
     <article class="news-card refer-card" data-source="rupeewa" aria-label="Rupeewa App - Refer & Earn">
@@ -629,7 +663,41 @@ function shareArticle(title, url) {{
   }}
 }}
 
-// Push Notifications
+// Search articles
+document.getElementById('searchInput')?.addEventListener('input', function() {{
+  const q = this.value.trim().toLowerCase();
+  const results = document.getElementById('searchResults');
+  if (!q || q.length < 2) {{ results.style.display = 'none'; return; }}
+  const articles = document.querySelectorAll('.news-card');
+  let matches = [];
+  articles.forEach(card => {{
+    const title = card.querySelector('h3')?.textContent?.toLowerCase() || '';
+    const desc = card.querySelector('p')?.textContent?.toLowerCase() || '';
+    const source = card.querySelector('.card-source-tag')?.textContent?.toLowerCase() || '';
+    if (title.includes(q) || desc.includes(q) || source.includes(q)) {{
+      matches.push({{ title: card.querySelector('h3 a')?.textContent || 'Article',
+                     link: card.querySelector('h3 a')?.href || '#',
+                     source: card.querySelector('.card-source-tag')?.textContent || '' }});
+    }}
+  }});
+  if (matches.length === 0) {{
+    results.innerHTML = '<div class="sr-none">No articles found</div>';
+  }} else {{
+    results.innerHTML = '<div class="sr-count">' + matches.length + ' result' + (matches.length > 1 ? 's' : '') + '</div>' +
+      matches.slice(0, 10).map(m =>
+        '<a href="' + m.link + '" target="_blank" rel="noopener">' +
+        '<span class="sr-source">' + m.source + '</span>' +
+        '<span class="sr-title">' + m.title + '</span></a>'
+      ).join('');
+  }}
+  results.style.display = 'block';
+}});
+document.addEventListener('click', function(e) {{
+  const r = document.getElementById('searchResults');
+  if (r && !e.target.closest('.search-wrapper')) r.style.display = 'none';
+}});
+
+// End search
 const vapidPublicKey = 'BP3qGc-cn0TfGRDAkVrgfYAKqEEIvygeWxR77B1trmNN4Vy5oOj_pLDQLUpVY1Vi0-Bg9GhKFf-STnagdc1R3QM';
 
 function urlBase64ToUint8Array(base64String) {{
@@ -811,7 +879,31 @@ def main():
             unique.append(item)
 
     print(f"\n📊 {len(unique)} unique articles from {len(FEEDS)} sources")
+    
+    # ── Include custom articles from admin/custom_articles.json ──
+    custom_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'admin', 'custom_articles.json')
+    if os.path.exists(custom_path):
+        try:
+            with open(custom_path, 'r', encoding='utf-8') as f:
+                custom_data = json.load(f)
+            custom_articles = custom_data.get('articles', [])
+            for art in custom_articles:
+                if art.get('is_hidden'):
+                    continue
+                unique.insert(0, {
+                    'title': art.get('title', 'Untitled'),
+                    'description': art.get('content', ''),
+                    'link': SITE_URL,
+                    'source': 'Custom',
+                    'creator': art.get('author', 'Admin'),
+                    'published': art.get('created_at', datetime.now().isoformat()),
+                    'image': art.get('image_url', '')
+                })
+            print(f"📝 {len([a for a in custom_articles if not a.get('is_hidden')])} custom articles included")
+        except:
+            print("⚠️ Could not read custom articles")
     print()
+    
     html = generate_html(unique)
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'index.html')
     with open(out, 'w', encoding='utf-8') as f:

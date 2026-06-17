@@ -174,6 +174,16 @@
         .btn-success { background: #059669; color: #fff; }
         .btn-success:hover { background: #047857; transform: translateY(-1px); }
 
+                .image-preview { max-width: 100%; max-height: 160px; border-radius: 8px; margin-top: 0.5rem; display: none; }
+        .image-preview.show { display: block; }
+        .char-count { font-size: 0.75rem; color: #666; text-align: right; }
+        .create-form { max-width: 600px; }
+        .form-hint { font-size: 0.78rem; color: #666; margin-top: -0.5rem; margin-bottom: 0.75rem; }
+        .image-preview { max-width: 100%; max-height: 160px; border-radius: 8px; margin-top: 0.5rem; display: none; }
+        .image-preview.show { display: block; }
+        .char-count { font-size: 0.75rem; color: #666; text-align: right; }
+        .create-form { max-width: 600px; }
+        .form-hint { font-size: 0.78rem; color: #666; margin-top: -0.5rem; margin-bottom: 0.75rem; }
         .badge {
             padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600;
         }
@@ -240,6 +250,7 @@
             <nav>
                 <a href="#" data-page="dashboard" class="active" onclick="navigate('dashboard')">📊 Dashboard</a>
                 <a href="#" data-page="articles" onclick="navigate('articles')">📝 Articles</a>
+                <a href="#" data-page="createarticle" onclick="navigate('createarticle')">✏️ Create Article</a>
                 <a href="#" data-page="sources" onclick="navigate('sources')">📡 Sources</a>
                 <a href="#" data-page="seo" onclick="navigate('seo')">🔍 SEO Settings</a>
                 <a href="#" data-page="build" onclick="navigate('build')">🚀 Build</a>
@@ -349,10 +360,115 @@ function loadPage(page) {
     el.innerHTML = '<div class="loading">Loading...</div>';
     if (page === 'dashboard') loadDashboard(el);
     else if (page === 'articles') loadArticles(el);
+    else if (page === 'createarticle') loadCreateArticle(el);
     else if (page === 'sources') loadSources(el);
     else if (page === 'seo') loadSeo(el);
     else if (page === 'build') loadBuild(el);
     else if (page === 'subscribers') loadSubscribers(el);
+}
+
+// ─── CREATE CUSTOM ARTICLE ──────────────────────────────────────────
+
+async function loadCreateArticle(el) {
+    const now = new Date();
+    el.innerHTML = `
+        <div class="dash-header">
+            <div>
+                <h1>✏️ Create Article</h1>
+                <div class="dash-greeting">Create a custom article with text and image</div>
+            </div>
+        </div>
+        <div class="card create-form">
+            <h3>📝 Article Details</h3>
+            <div class="form-row">
+                <label for="caTitle">Article Title *</label>
+                <input type="text" id="caTitle" placeholder="Enter a compelling headline..." />
+                <div class="char-count" id="caTitleCount">0 / 120</div>
+            </div>
+            <div class="form-row">
+                <label for="caImage">Image URL</label>
+                <input type="url" id="caImage" placeholder="https://example.com/image.jpg" oninput="previewImage(this.value)" />
+                <img id="caImagePreview" class="image-preview" alt="Preview" />
+                <div class="form-hint">Paste an image URL to show a preview</div>
+            </div>
+            <div class="form-row">
+                <label for="caContent">Content / Summary</label>
+                <textarea id="caContent" rows="4" placeholder="Write article content or summary here..."></textarea>
+                <div class="form-hint">At least 20 characters recommended</div>
+            </div>
+            <div class="form-row">
+                <label for="caAuthor">Author Name</label>
+                <input type="text" id="caAuthor" placeholder="Your name" value="Rupeewa Team" />
+            </div>
+            <div class="form-row" style="display:flex;gap:1rem;align-items:center">
+                <label style="margin:0;display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+                    <input type="checkbox" id="caFeatured" style="width:auto" /> ⭐ Feature this article
+                </label>
+            </div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem">
+                <button class="btn btn-primary" onclick="submitCustomArticle()">📤 Publish Article</button>
+                <button class="btn btn-outline" onclick="loadCreateArticle(document.getElementById('pageContent'))">🔄 Clear Form</button>
+            </div>
+            <div id="caResult" style="margin-top:1rem"></div>
+        </div>
+        <div class="card">
+            <h3>💡 How it works</h3>
+            <ol style="color:#aaa;line-height:1.8;padding-left:1.2rem">
+                <li><strong>Title</strong> — Enter a catchy headline</li>
+                <li><strong>Image</strong> — Paste any public image URL</li>
+                <li><strong>Content</strong> — Write or paste article content</li>
+                <li><strong>Author</strong> — Your name (optional)</li>
+                <li>Click <strong>"Publish Article"</strong> → saved to GitHub</li>
+                <li>Go to <strong>Build</strong> page → <strong>Trigger Build</strong> → article appears on website!</li>
+            </ol>
+        </div>
+    `;
+    document.getElementById('caTitle')?.addEventListener('input', function() {
+        document.getElementById('caTitleCount').textContent = this.value.length + ' / 120';
+    });
+}
+
+// Image preview
+function previewImage(url) {
+    const img = document.getElementById('caImagePreview');
+    if (!img) return;
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+        img.src = url;
+        img.classList.add('show');
+    } else {
+        img.classList.remove('show');
+    }
+}
+
+// Submit custom article
+async function submitCustomArticle() {
+    const title = document.getElementById('caTitle')?.value.trim();
+    const content = document.getElementById('caContent')?.value.trim();
+    const image_url = document.getElementById('caImage')?.value.trim();
+    const author = document.getElementById('caAuthor')?.value.trim() || 'Rupeewa Team';
+    const is_featured = document.getElementById('caFeatured')?.checked || false;
+    const resultEl = document.getElementById('caResult');
+
+    if (!title) { resultEl.innerHTML = '<p class="color-danger">❌ Title is required</p>'; return; }
+    if (title.length > 120) { resultEl.innerHTML = '<p class="color-danger">❌ Title must be under 120 characters</p>'; return; }
+
+    resultEl.innerHTML = '<p style="color:#888">⏳ Publishing...</p>';
+    try {
+        const data = await api('POST', '/articles/create', { title, content, image_url, author, is_featured });
+        if (data && data.status === 'created') {
+            resultEl.innerHTML = '<p class="color-success">✅ Article published! ID: ' + data.id + '. <a href="#" onclick="navigate(\'build\')" style="color:#6c63ff">👉 Go to Build page</a> to deploy.</p>';
+            // Clear form
+            document.getElementById('caTitle').value = '';
+            document.getElementById('caContent').value = '';
+            document.getElementById('caImage').value = '';
+            document.getElementById('caFeatured').checked = false;
+            document.getElementById('caImagePreview')?.classList.remove('show');
+        } else {
+            resultEl.innerHTML = '<p class="color-danger">❌ ' + (data?.error || 'Failed to publish') + '</p>';
+        }
+    } catch (e) {
+        resultEl.innerHTML = '<p class="color-danger">❌ ' + e.message + '</p>';
+    }
 }
 
 // ─── DASHBOARD ─────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ from urllib.parse import urlparse, parse_qs
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from lib.shared import read_config, write_config, get_build_stats, GITHUB_TOKEN, REPO
+from lib.shared import read_config, write_config, get_build_stats, GITHUB_TOKEN, REPO, read_github_file, write_github_file
 
 ADMIN_USER = os.environ.get('ADMIN_USER', '')
 ADMIN_PASS_HASH = os.environ.get('ADMIN_PASS_HASH', '')
@@ -328,6 +328,28 @@ class handler(BaseHTTPRequestHandler):
             _send_secure_json(self, {"subscribers": recent, "total": len(subs)})
             return
 
+        # /api/search?q=...
+        if path == '/api/search':
+            q = parse_qs(urlparse(self.path).query).get('q', [''])[0].strip().lower()
+            if not q or len(q) < 2:
+                _send_secure_json(self, {"results": [], "query": q})
+                return
+            try:
+                import requests as req
+                base_url = 'https://rupeewa.vercel.app'
+                r = req.get(f'{base_url}/api/articles', timeout=5,
+                            headers={'Authorization': self.headers.get('Authorization', '')})
+                if r.status_code == 200:
+                    data = r.json()
+                    articles = data.get('articles', [])
+                    results = [a for a in articles if q in a.get('title', '').lower() or q in a.get('description', '').lower()]
+                    _send_secure_json(self, {"results": results[:20], "total": len(results), "query": q})
+                else:
+                    _send_secure_json(self, {"results": [], "query": q})
+            except:
+                _send_secure_json(self, {"results": [], "query": q})
+            return
+
         _send_secure_json(self, {"error": "Not found", "path": path}, 404)
 
     def do_POST(self):
@@ -453,6 +475,43 @@ class handler(BaseHTTPRequestHandler):
                 config['article_overrides'] = overrides
                 if write_config(config, sha):
                     _send_secure_json(self, {"status": "ok"})
+                else:
+                    _send_secure_json(self, {"error": "Failed to save"}, 500)
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
+        # /api/articles/create — custom article with text + image
+        if path == '/api/articles/create':
+            try:
+                data = _parse_json_body(body)
+                title = data.get('title', '').strip()
+                content = data.get('content', '').strip()
+                image_url = data.get('image_url', '').strip()
+                author = data.get('author', 'Admin').strip()
+                if not title:
+                    _send_secure_json(self, {"error": "title required"}, 400)
+                    return
+                # Load existing custom articles from GitHub
+                CUSTOM_PATH = 'admin/custom_articles.json'
+                articles, sha = read_github_file(CUSTOM_PATH)
+                if articles is None:
+                    articles = {"articles": []}
+                new_id = max([a.get('id', 0) for a in articles.get('articles', [])], default=0) + 1
+                article = {
+                    'id': new_id,
+                    'title': title,
+                    'content': content,
+                    'image_url': image_url,
+                    'author': author,
+                    'source': 'Custom',
+                    'is_featured': bool(data.get('is_featured', False)),
+                    'is_hidden': bool(data.get('is_hidden', False)),
+                    'created_at': time.strftime('%Y-%m-%dT%H:%M:%S')
+                }
+                articles['articles'].append(article)
+                if write_github_file(CUSTOM_PATH, articles, sha, f'admin: custom article "{title}"'):
+                    _send_secure_json(self, {"status": "created", "id": new_id, "article": article})
                 else:
                     _send_secure_json(self, {"error": "Failed to save"}, 500)
             except Exception as e:
