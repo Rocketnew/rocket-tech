@@ -392,32 +392,32 @@ def generate_html(all_news):
   <link rel="stylesheet" href="style.css">
   <!-- Search bar styles -->
   <style>
-      .search-wrapper { margin: 1rem 0 0; position: relative; max-width: 480px; }
-      .search-input {
+      .search-wrapper {{ margin: 1rem 0 0; position: relative; max-width: 480px; }}
+      .search-input {{
           width: 100%; padding: 0.7rem 1rem 0.7rem 2.5rem; border-radius: 12px;
           border: 1px solid #2a2a3a; background: #12121a; color: #e1e1e8;
           font-size: 0.9rem; outline: none; transition: all 0.2s;
           box-sizing: border-box;
-      }
-      .search-input:focus { border-color: #6c63ff; box-shadow: 0 0 0 3px rgba(108,99,255,0.1); }
-      .search-input::placeholder { color: #555; }
-      .search-results {
+      }}
+      .search-input:focus {{ border-color: #6c63ff; box-shadow: 0 0 0 3px rgba(108,99,255,0.1); }}
+      .search-input::placeholder {{ color: #555; }}
+      .search-results {{
           position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
           background: #1a1a24; border: 1px solid #2a2a3a; border-radius: 12px;
           margin-top: 4px; max-height: 360px; overflow-y: auto;
           box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-      }
-      .search-results a {
+      }}
+      .search-results a {{
           display: block; padding: 0.7rem 1rem; color: #e1e1e8; text-decoration: none;
           border-bottom: 1px solid #1e1e2e; font-size: 0.85rem;
           transition: background 0.1s;
-      }
-      .search-results a:last-child { border-bottom: none; }
-      .search-results a:hover { background: rgba(108,99,255,0.05); }
-      .search-results .sr-source { font-size: 0.7rem; color: #6c63ff; text-transform: uppercase; letter-spacing: 0.3px; }
-      .search-results .sr-title { display: block; margin-top: 2px; }
-      .search-results .sr-none { padding: 1rem; color: #666; text-align: center; font-size: 0.85rem; }
-      .search-results .sr-count { padding: 0.5rem 1rem; font-size: 0.75rem; color: #555; }
+      }}
+      .search-results a:last-child {{ border-bottom: none; }}
+      .search-results a:hover {{ background: rgba(108,99,255,0.05); }}
+      .search-results .sr-source {{ font-size: 0.7rem; color: #6c63ff; text-transform: uppercase; letter-spacing: 0.3px; }}
+      .search-results .sr-title {{ display: block; margin-top: 2px; }}
+      .search-results .sr-none {{ padding: 1rem; color: #666; text-align: center; font-size: 0.85rem; }}
+      .search-results .sr-count {{ padding: 0.5rem 1rem; font-size: 0.75rem; color: #555; }}
   </style>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%237c3aed'/><stop offset='100%25' stop-color='%236366f1'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='%230a0a0f'/><text x='50' y='72' font-size='60' text-anchor='middle'>🚀</text></svg>">
   <!-- Monetag -->
