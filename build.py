@@ -423,6 +423,28 @@ def generate_html(all_news):
       .search-results .sr-title {{ display: block; margin-top: 2px; }}
       .search-results .sr-none {{ padding: 1rem; color: #666; text-align: center; font-size: 0.85rem; }}
       .search-results .sr-count {{ padding: 0.5rem 1rem; font-size: 0.75rem; color: #555; }}
+      /* ─── Mobile Nav —── */
+      .nav-hamburger {{ display: none; flex-direction: column; gap: 4px; background: none; border: none; cursor: pointer; padding: 8px; }}
+      .nav-hamburger span {{ display: block; width: 20px; height: 2px; background: #aaa; border-radius: 2px; transition: 0.3s; }}
+      .nav-right.mobile-open {{ display: flex !important; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: #0a0a0f; padding: 1rem; border-bottom: 1px solid #1a1a2e; z-index: 100; }}
+      /* ─── Theme Toggle —── */
+      .theme-toggle {{ background: none; border: 1px solid #333; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: 0.3s; }}
+      .theme-toggle:hover {{ border-color: #6c63ff; background: #1a1a2e; }}
+      @media (max-width: 768px) {{
+        .nav-hamburger {{ display: flex; }}
+        .nav-right {{ display: none; }}
+        .nav-right.mobile-open {{ display: flex !important; }}
+        .nav-update {{ display: none; }}
+      }}
+      /* ─── Light Theme —── */
+      [data-theme="light"] {{
+        --bg: #f5f5f8; --bg-card: #ffffff; --text: #1a1a2e;
+        --text-secondary: #555; --border: #e0e0e8;
+      }}
+      [data-theme="light"] body {{ background: var(--bg, #f5f5f8); color: var(--text, #1a1a2e); }}
+      [data-theme="light"] .nav-right.mobile-open {{ background: #fff; border-color: #e0e0e8; }}
+      [data-theme="light"] .theme-toggle {{ border-color: #ccc; }}
+      [data-theme="light"] .theme-toggle:hover {{ border-color: #6c63ff; background: #eee; }}
   </style>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%237c3aed'/><stop offset='100%25' stop-color='%236366f1'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='%230a0a0f'/><text x='50' y='72' font-size='60' text-anchor='middle'>🚀</text></svg>">
   <!-- Monetag -->
@@ -448,9 +470,13 @@ def generate_html(all_news):
         <span class="nav-logo-badge">News Daily</span>
       </a>
     </div>
+    <button class="nav-hamburger" onclick="toggleNav()" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
     <div class="nav-right">
       <span class="nav-stats">{len(display_news)} stories</span>
       <span class="nav-update">Updated {now}</span>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">🌙</button>
     </div>
   </nav>
 </header>
@@ -703,6 +729,36 @@ document.addEventListener('click', function(e) {{
 }});
 
 // End search
+
+// Mobile nav toggle
+function toggleNav() {{
+  const nav = document.querySelector('.nav-right');
+  const btn = document.querySelector('.nav-hamburger');
+  if (!nav || !btn) return;
+  const isOpen = nav.classList.toggle('mobile-open');
+  btn.setAttribute('aria-expanded', isOpen);
+}}
+
+// Light/Dark theme toggle
+function toggleTheme() {{
+  const html = document.documentElement;
+  const btn = document.querySelector('.theme-toggle');
+  const isDark = html.getAttribute('data-theme') !== 'light';
+  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+  localStorage.setItem('theme', isDark ? 'light' : 'dark');
+  if (btn) btn.textContent = isDark ? '☀️' : '🌙';
+}}
+
+// Apply saved theme on load
+(function() {{
+  const saved = localStorage.getItem('theme');
+  if (saved) {{
+    document.documentElement.setAttribute('data-theme', saved);
+    const btn = document.querySelector('.theme-toggle');
+    if (btn) btn.textContent = saved === 'dark' ? '🌙' : '☀️';
+  }}
+}})();
+
 const vapidPublicKey = 'BP3qGc-cn0TfGRDAkVrgfYAKqEEIvygeWxR77B1trmNN4Vy5oOj_pLDQLUpVY1Vi0-Bg9GhKFf-STnagdc1R3QM';
 
 function urlBase64ToUint8Array(base64String) {{
