@@ -309,6 +309,61 @@ class handler(BaseHTTPRequestHandler):
                 _send_secure_json(self, {"authenticated": False})
             return
 
+        # ─── PUBLIC GET ENDPOINTS (no auth required) ───
+        # /api/articles
+        if path == '/api/articles':
+            articles, total, err = _fetch_articles()
+            if err:
+                _send_secure_json(self, {"error": f"Failed to fetch articles: {err}"}, 500)
+                return
+            qs = parse_qs(urlparse(self.path).query)
+            limit = int(qs.get('limit', ['200'])[0])
+            _send_secure_json(self, {"articles": articles[:limit], "total": total})
+            return
+
+        # /api/articles/custom — list custom articles from GitHub
+        if path == '/api/articles/custom':
+            try:
+                custom, _ = read_github_file('admin/custom_articles.json')
+                arts = custom.get('articles', []) if custom else []
+                _send_secure_json(self, {"articles": arts, "total": len(arts)})
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
+        # /api/images — list uploaded images from GitHub
+        if path == '/api/images':
+            try:
+                import requests
+                url = f'https://api.github.com/repos/{REPO}/contents/admin/images'
+                headers = {'User-Agent': 'rupeewa-admin', 'Accept': 'application/vnd.github.v3+json'}
+                if GITHUB_TOKEN:
+                    headers['Authorization'] = f'Bearer {GITHUB_TOKEN}'
+                r = requests.get(url, headers=headers, timeout=10)
+                if r.status_code != 200:
+                    _send_secure_json(self, {"images": [], "total": 0})
+                    return
+                files = r.json()
+                images = [{
+                    'name': f['name'],
+                    'size': f['size'],
+                    'url': f['download_url'],
+                    'sha': f['sha']
+                } for f in files if isinstance(f, dict) and f.get('type') == 'file' and f['name'].lower().rsplit('.', 1)[-1] in ('png','jpg','jpeg','gif','webp','svg','ico')]
+                _send_secure_json(self, {"images": images, "total": len(images)})
+            except Exception as e:
+                _send_secure_json(self, {"images": [], "total": 0, "error": str(e)})
+            return
+
+        # /api/push/latest — latest notification for SW to fetch (public)
+        if path == '/api/push/latest':
+            config, _ = read_config()
+            latest = config.get('push_latest', {})
+            if not latest.get('timestamp'):
+                latest = _push_latest
+            _send_secure_json(self, latest)
+            return
+
         # ─── AUTH-REQUIRED ENDPOINTS ───
         user = _auth_required(self)
         if not user:
@@ -334,28 +389,6 @@ class handler(BaseHTTPRequestHandler):
                 _send_secure_json(self, {"error": str(e)}, 500)
             return
 
-        # /api/articles
-        if path == '/api/articles':
-            articles, total, err = _fetch_articles()
-            if err:
-                _send_secure_json(self, {"error": f"Failed to fetch articles: {err}"}, 500)
-                return
-            # Parse limit from query
-            qs = parse_qs(urlparse(self.path).query)
-            limit = int(qs.get('limit', ['200'])[0])
-            _send_secure_json(self, {"articles": articles[:limit], "total": total})
-            return
-
-        # /api/articles/custom — list custom articles from GitHub
-        if path == '/api/articles/custom':
-            try:
-                custom, _ = read_github_file('admin/custom_articles.json')
-                arts = custom.get('articles', []) if custom else []
-                _send_secure_json(self, {"articles": arts, "total": len(arts)})
-            except Exception as e:
-                _send_secure_json(self, {"error": str(e)}, 500)
-            return
-
         # /api/sources
         if path == '/api/sources':
             config, _ = read_config()
@@ -373,39 +406,6 @@ class handler(BaseHTTPRequestHandler):
             config, _ = read_config()
             logs = config.get('build_logs', [])
             _send_secure_json(self, {"logs": logs[-20:]})
-            return
-
-        # /api/push/latest — latest notification for SW to fetch (public)
-        if path == '/api/push/latest':
-            config, _ = read_config()
-            latest = config.get('push_latest', {})
-            if not latest.get('timestamp'):
-                latest = _push_latest
-            _send_secure_json(self, latest)
-            return
-
-        # /api/images — list uploaded images from GitHub
-        if path == '/api/images':
-            try:
-                import requests
-                url = f'https://api.github.com/repos/{REPO}/contents/admin/images'
-                headers = {'User-Agent': 'rupeewa-admin', 'Accept': 'application/vnd.github.v3+json'}
-                if GITHUB_TOKEN:
-                    headers['Authorization'] = f'Bearer {GITHUB_TOKEN}'
-                r = requests.get(url, headers=headers, timeout=10)
-                if r.status_code != 200:
-                    _send_secure_json(self, {"images": [], "total": 0})
-                    return
-                files = r.json()
-                images = [{
-                    'name': f['name'],
-                    'size': f['size'],
-                    'url': f['download_url'],
-                    'sha': f['sha']
-                } for f in files if isinstance(f, dict) and f.get('type') == 'file' and f['name'].lower().rsplit('.', 1)[-1] in ('png','jpg','jpeg','gif','webp','svg','ico')]
-                _send_secure_json(self, {"images": images, "total": len(images)})
-            except Exception as e:
-                _send_secure_json(self, {"images": [], "total": 0, "error": str(e)})
             return
 
         # /api/seo
