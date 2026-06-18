@@ -19,4 +19,7 @@ jobs:
           node-version: 22
 
       - name: Deploy to Vercel
-        run: npx vercel deploy --prod --yes --scope team_nH74DsGJuHIdmakgZap16v9s --token="${{ secrets.VERCEL_TOKEN }}"
+        env:
+          VERCEL_ORG_ID: team_nH74DsGJuHIdmakgZap16v9s
+          VERCEL_PROJECT_ID: prj_qC5CHqTqH6nAtpEzOBNE9GeGs19S
+        run: npx vercel deploy --prod --yes --token="${{ secrets.VERCEL_TOKEN }}"
