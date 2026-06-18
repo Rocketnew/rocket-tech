@@ -227,6 +227,61 @@ def _get_build_sources():
     return sources
 
 
+# ─── VAPID / PUSH HELPERS ──────────────────────────────────────────
+
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_SUBJECT = 'mailto:admin@rupeewa.vercel.app'
+
+# In-memory latest notification for SW to fetch (also persisted in config)
+_push_latest = {"title": "", "message": "", "timestamp": ""}
+
+def _send_manual_push(subscription, payload_json, vapid_private_key, vapid_public_key):
+    """Send push via VAPID JWT. No encrypted payload — SW fetches content from /api/push/latest."""
+    import json, time, base64, struct
+    from urllib.parse import urlparse
+    from http.client import HTTPSConnection
+
+    try:
+        # Build VAPID JWT
+        hdr = '{"typ":"JWT","alg":"ES256"}'
+        dom = urlparse(subscription['endpoint']).hostname
+        claims = json.dumps({"aud": dom, "exp": int(time.time()) + 43200, "sub": VAPID_SUBJECT},
+                           separators=(',',':'))
+        def b64url(d):
+            return base64.urlsafe_b64encode(d.encode() if isinstance(d, str) else d).rstrip(b'=').decode()
+        sig_in = f"{b64url(hdr)}.{b64url(claims)}".encode()
+
+        # ES256 sign with cryptography
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from cryptography.hazmat.primitives import serialization, hashes
+        key = serialization.load_pem_private_key(vapid_private_key.encode(), password=None)
+        der_sig = key.sign(sig_in, ec.ECDSA(hashes.SHA256()))
+        # DER to raw r||s
+        r_len = der_sig[3]
+        r = der_sig[4:4+r_len]
+        s = der_sig[5+r_len:]
+        sig_b64 = b64url(r.rjust(32, b'\x00') + s.rjust(32, b'\x00'))
+        jwt = f"{b64url(hdr)}.{b64url(claims)}.{sig_b64}"
+
+        # POST to endpoint
+        parsed = urlparse(subscription['endpoint'])
+        conn = HTTPSConnection(parsed.hostname, parsed.port or 443, timeout=10)
+        conn.request("POST", parsed.path,
+            body=b"",
+            headers={
+                "TTL": "86400",
+                "Content-Type": "application/octet-stream",
+                "Authorization": f"vapid t={jwt}, k={vapid_public_key}"
+            })
+        resp = conn.getresponse()
+        resp.read()
+        conn.close()
+        return resp.status in (201, 202, 204)
+    except:
+        return False
+
+
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path.rstrip('/')
@@ -308,6 +363,15 @@ class handler(BaseHTTPRequestHandler):
             config, _ = read_config()
             logs = config.get('build_logs', [])
             _send_secure_json(self, {"logs": logs[-20:]})
+            return
+
+        # /api/push/latest — latest notification for SW to fetch (public)
+        if path == '/api/push/latest':
+            config, _ = read_config()
+            latest = config.get('push_latest', {})
+            if not latest.get('timestamp'):
+                latest = _push_latest
+            _send_secure_json(self, latest)
             return
 
         # /api/seo
@@ -710,16 +774,12 @@ class handler(BaseHTTPRequestHandler):
                 message = data.get('message', 'New tech news available!')
                 icon_url = data.get('icon', '/icons/icon-192.png')
 
-                config, _ = read_config()
+                config, sha = read_config()
                 subs = config.get('push_subscriptions', [])
                 if not subs:
                     _send_secure_json(self, {"status": "ok", "sent": 0, "message": "No subscribers"})
                     return
 
-                import pywebpush
-                from pywebpush import webpush, WebPushException
-
-                # Read VAPID keys from config (env vars override)
                 vapid_private = VAPID_PRIVATE_KEY or config.get('vapid_private_key', '')
                 vapid_public = VAPID_PUBLIC_KEY or config.get('vapid_public_key', '')
                 if not vapid_private or not vapid_public:
@@ -735,28 +795,46 @@ class handler(BaseHTTPRequestHandler):
                     'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
                 })
 
+                # Save latest notification for SW to fetch
+                latest_data = {"title": title, "message": message, "icon": icon_url, "timestamp": time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}
+                global _push_latest
+                _push_latest = latest_data
+                config['push_latest'] = latest_data
+                write_config(config, sha_)
+
                 sent = 0
                 errors = []
+
+                # Try pywebpush first, fallback to manual
+                try:
+                    from pywebpush import webpush, WebPushException
+                    HAS_PYWEBPUSH = True
+                except ImportError:
+                    HAS_PYWEBPUSH = False
+
                 for sub in subs:
                     try:
-                        push_info = {
-                            'endpoint': sub['endpoint'],
-                            'keys': sub.get('keys', {})
-                        }
-                        webpush(
-                            subscription_info=push_info,
-                            data=payload,
-                            vapid_private_key=vapid_private,
-                            vapid_claims={"sub": "mailto:admin@rupeewa.vercel.app"}
-                        )
-                        sent += 1
-                    except WebPushException as e:
-                        if e.response and e.response.status_code == 410:
+                        if HAS_PYWEBPUSH:
+                            push_info = {'endpoint': sub['endpoint'], 'keys': sub.get('keys', {})}
+                            webpush(
+                                subscription_info=push_info,
+                                data=payload,
+                                vapid_private_key=vapid_private,
+                                vapid_claims={"sub": "mailto:admin@rupeewa.vercel.app"}
+                            )
+                            sent += 1
+                        else:
+                            # Manual VAPID push - ES256 JWT + encrypted payload
+                            if _send_manual_push(sub, payload, vapid_private, vapid_public):
+                                sent += 1
+                            else:
+                                errors.append({"endpoint": sub['endpoint'][:30]+"...", "error": "manual push failed"})
+                    except Exception as e:
+                        err_msg = str(e)[:80]
+                        if '410' in err_msg or 'Gone' in err_msg or 'expired' in err_msg.lower():
                             errors.append({"endpoint": sub['endpoint'][:30]+"...", "error": "expired"})
                         else:
-                            errors.append({"endpoint": sub['endpoint'][:30]+"...", "error": str(e)[:50]})
-                    except Exception as e:
-                        errors.append({"endpoint": sub['endpoint'][:30]+"...", "error": str(e)[:50]})
+                            errors.append({"endpoint": sub['endpoint'][:30]+"...", "error": err_msg})
 
                 _send_secure_json(self, {
                     "status": "ok",

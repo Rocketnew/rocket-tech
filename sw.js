@@ -46,21 +46,45 @@ self.addEventListener('fetch', event => {
 
 // Push notifications
 self.addEventListener('push', event => {
-  if (!event.data) return;
-  try {
-    const data = event.data.json();
-    self.registration.showNotification(data.title || 'Rupeewa News', {
-      body: data.body || 'New article available',
-      icon: '/icons/icon-192.svg',
-      badge: '/icons/icon-192.svg',
-      data: { url: data.url || '/' },
-      vibrate: [200, 100, 200]
-    });
-  } catch {
-    self.registration.showNotification('Rupeewa News', {
-      body: event.data.text(),
-      icon: '/icons/icon-192.svg'
-    });
+  if (event.data) {
+    try {
+      const data = event.data.json();
+      self.registration.showNotification(data.title || 'Rupeewa News', {
+        body: data.body || data.message || 'New article available',
+        icon: '/icons/icon-192.svg',
+        badge: '/icons/icon-192.svg',
+        data: { url: data.url || '/' },
+        vibrate: [200, 100, 200]
+      });
+    } catch {
+      self.registration.showNotification('Rupeewa News', {
+        body: event.data.text(),
+        icon: '/icons/icon-192.svg'
+      });
+    }
+  } else {
+    // No payload — fetch latest from API
+    event.waitUntil(
+      fetch('/api/push/latest')
+        .then(r => r.json())
+        .then(data => {
+          if (data.message) {
+            self.registration.showNotification(data.title || 'Rupeewa News', {
+              body: data.message,
+              icon: '/icons/icon-192.svg',
+              badge: '/icons/icon-192.svg',
+              data: { url: data.url || '/' },
+              vibrate: [200, 100, 200]
+            });
+          }
+        })
+        .catch(() => {
+          self.registration.showNotification('Rupeewa News', {
+            body: 'New updates available!',
+            icon: '/icons/icon-192.svg'
+          });
+        })
+    );
   }
 });
 
