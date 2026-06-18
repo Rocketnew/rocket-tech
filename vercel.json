@@ -2,6 +2,7 @@
   "version": 2,
   "builds": [
     { "src": "*.html", "use": "@vercel/static" },
+    { "src": "admin.html", "use": "@vercel/static" },
     { "src": "style.css", "use": "@vercel/static" },
     { "src": "*.{css,js,json,jpg,png,svg,ico,xml,txt}", "use": "@vercel/static" },
     { "src": "icons/*.{svg,png}", "use": "@vercel/static" },
@@ -9,6 +10,7 @@
   ],
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.py" },
+    { "src": "/admin(/.*)?", "dest": "/admin.html" },
     { "src": "/robots\\.txt", "dest": "/robots.txt" },
     { "src": "/sitemap\\.xml", "dest": "/sitemap.xml" },
     { "src": "/llms\\.txt", "dest": "/llms.txt" },
@@ -20,7 +22,6 @@
     { "src": "/assets/(.*)", "dest": "/assets/$1" },
     { "src": "/(.*\\.(css|js|png|jpg|svg|ico|json|xml|txt))$", "dest": "/$1" },
     { "src": "(/google.*\\.html)$", "dest": "$1" },
-    { "src": "/admin(/.*)?", "dest": "/admin.html" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
