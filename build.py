@@ -351,52 +351,74 @@ def generate_html(all_news):
         color = src_info.get('color', '#666')
         source_buttons += f'''
         <button class="cat-btn" data-filter="{s_class}" style="--btn-color:{color}">{escape(s)}</button>'''
+    # ─── CUSTOM HEAD HTML + GA INJECTION ───
+    CUSTOM_HEAD = ""
+    GA_ID = ""
+    try:
+        import json as _json
+        _config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'admin', 'config.json')
+        if os.path.exists(_config_path):
+            with open(_config_path) as _f:
+                _cfg = _json.load(_f)
+            CUSTOM_HEAD = _cfg.get('custom_head_html', '')
+            GA_ID = _cfg.get('google_analytics_id', '').strip()
+    except Exception:
+        pass
 
-    html = f'''<!DOCTYPE html>
+    # Build GA tag if ID is configured
+    GA_TAG = ""
+    if GA_ID:
+        GA_TAG = f"""\n<!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){{dataLayer.push(arguments);}}
+    gtag('js', new Date());
+    gtag('config', '{GA_ID}');
+    </script>\n"""
+
+    # ─── TEMPLATE ───
+    output_template = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="google-site-verification" content="4lKhG4kpuIxY8trSyF3P4g685OgZlY1l09pk29As63k">
-  <title>{SITE_NAME} — Today's Top Tech News</title>
-  <meta name="description" content="{SITE_DESC}">
-  <meta name="robots" content="index, follow">
-  <meta name="keywords" content="tech news, AI, startups, gadgets, Hacker News, TechCrunch, The Verge, technology, daily news, programming">
-  <meta name="author" content="{SITE_NAME}">
-  <meta property="article:published_time" content="{iso_now}">
-  <meta property="article:modified_time" content="{iso_now}">
-  <meta name="date" content="{today_str}">
-  <link rel="canonical" href="{SITE_URL}/">
-
-  <!-- Open Graph / Social Meta -->
-  <meta property="og:title" content="{SITE_NAME} \u2014 Today's Top Tech News">
-  <meta property="og:description" content="{SITE_DESC}">
-  <meta property="og:image" content="{HERO_IMG}">
-  <meta property="og:url" content="{SITE_URL}/">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="{SITE_NAME}">
-  <meta property="og:locale" content="en_US">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="{SITE_NAME} \u2014 Today's Top Tech News">
-  <meta name="twitter:description" content="{SITE_DESC}">
-  <meta name="twitter:image" content="{HERO_IMG}">
-
-  <!-- JSON-LD Structured Data -->
-  <script type="application/ld+json">{json_org}</script>
-  <script type="application/ld+json">{json_website}</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{SITE_DESC}">
+    <meta name="robots" content="index, follow">
+    <meta name="keywords" content="{SITE_DESC}">
+    <meta name="author" content="{SITE_NAME}">
+    <meta property="article:published_time" content="{iso_now}">
+    <meta property="article:modified_time" content="{iso_now}">
+    <meta name="date" content="{today_str}">
+    <link rel="canonical" href="{SITE_URL}/">
+    <!-- Open Graph / Social Meta -->
+    <meta property="og:title" content="{SITE_NAME} — Today's Top Tech News">
+    <meta property="og:description" content="{SITE_DESC}">
+    <meta property="og:image" content="{HERO_IMG}">
+    <meta property="og:url" content="{SITE_URL}/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{SITE_NAME}">
+    <meta property="og:locale" content="en_US">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{SITE_NAME} — Today's Top Tech News">
+    <meta name="twitter:description" content="{SITE_DESC}">
+    <meta name="twitter:image" content="{HERO_IMG}">
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">{json_org}</script>
+    <script type="application/ld+json">{json_website}</script>
 {json_articles_html}
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#6c63ff">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="Rupeewa">
-  <meta name="mobile-web-app-capable" content="yes">
-  <!-- Search bar styles -->
-  <style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#6c63ff">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Rupeewa">
+    <meta name="mobile-web-app-capable" content="yes">
+{GA_TAG}{CUSTOM_HEAD}
+    <!-- Search bar styles -->
+    <style>
       .search-wrapper {{ margin: 1rem 0 0; position: relative; max-width: 480px; }}
       .search-input {{
           width: 100%; padding: 0.7rem 1rem 0.7rem 2.5rem; border-radius: 12px;
@@ -894,7 +916,7 @@ fetch('/notification.json?v=' + Date.now())
 
 </body>
 </html>'''
-    return html
+    return output_template
 
 def generate_sitemap():
     """Generate a basic sitemap.xml."""
