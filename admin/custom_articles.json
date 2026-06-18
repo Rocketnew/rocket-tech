@@ -1,17 +1,6 @@
 {
   "articles": [
     {
-      "id": 1,
-      "title": "MR. VIKASH KUSHWAHA",
-      "content": "WELCOME TO THE WORLD OF DARK SHADOW",
-      "image_url": "https://kommodo.ai/i/rLcx6UHaSwncep0In3tk",
-      "author": "DARK SHADOW",
-      "source": "Custom",
-      "is_featured": true,
-      "is_hidden": false,
-      "created_at": "2026-06-18T05:59:24"
-    },
-    {
       "id": 2,
       "title": "vikash",
       "content": "thankyou",
