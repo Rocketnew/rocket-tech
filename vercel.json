@@ -4,6 +4,7 @@
     { "src": "*.html", "use": "@vercel/static" },
     { "src": "style.css", "use": "@vercel/static" },
     { "src": "*.{css,js,json,jpg,png,svg,ico,xml,txt}", "use": "@vercel/static" },
+    { "src": "icons/*.{svg,png}", "use": "@vercel/static" },
     { "src": "api/index.py", "use": "@vercel/python" }
   ],
   "routes": [
