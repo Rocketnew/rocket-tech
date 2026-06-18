@@ -50,5 +50,15 @@
     }
   ],
   "created_at": "2026-06-16T01:45:00+00:00",
-  "updated_at": "2026-06-18T09:51:06.582965"
+  "updated_at": "2026-06-18T10:13:37.678562",
+  "push_subscriptions": [
+    {
+      "endpoint": "https://updates.push.services.mozilla.com/wpush/v1/test",
+      "keys": {
+        "p256dh": "BCVk...abc",
+        "auth": "test123"
+      },
+      "subscribed_at": "2026-06-18T10:13:37Z"
+    }
+  ]
 }
