@@ -408,6 +408,50 @@ class handler(BaseHTTPRequestHandler):
                 _send_secure_json(self, {"error": str(e)}, 500)
             return
 
+        # /api/push/subscribe — public push subscription (no auth)
+        if path == '/api/push/subscribe':
+            try:
+                sub_data = _parse_json_body(body)
+                if 'subscription' in sub_data:
+                    sub_data = sub_data['subscription']
+                endpoint = sub_data.get('endpoint', '')
+                if not endpoint:
+                    _send_secure_json(self, {"error": "Missing endpoint"}, 400)
+                    return
+                config, sha = read_config()
+                subs = config.get('push_subscriptions', [])
+                subs = [s for s in subs if s.get('endpoint') != endpoint]
+                subs.append({
+                    'endpoint': endpoint,
+                    'keys': sub_data.get('keys'),
+                    'subscribed_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+                })
+                config['push_subscriptions'] = subs
+                write_config(config, sha)
+                _send_secure_json(self, {"status": "saved", "total": len(subs)})
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
+        # /api/push/unsubscribe — public push unsubscription (no auth)
+        if path == '/api/push/unsubscribe':
+            try:
+                data = _parse_json_body(body)
+                endpoint = data.get('endpoint', '')
+                if not endpoint:
+                    _send_secure_json(self, {"error": "Missing endpoint"}, 400)
+                    return
+                config, sha = read_config()
+                subs = config.get('push_subscriptions', [])
+                before = len(subs)
+                subs = [s for s in subs if s.get('endpoint') != endpoint]
+                config['push_subscriptions'] = subs
+                write_config(config, sha)
+                _send_secure_json(self, {"status": "removed", "removed": before - len(subs)})
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
         # ─── AUTH-REQUIRED POST ENDPOINTS ───
         user = _auth_required(self)
         if not user:
@@ -651,51 +695,6 @@ class handler(BaseHTTPRequestHandler):
                     logs[-1]['error'] = str(e)
                 config['build_logs'] = logs
                 write_config(config, sha)
-                _send_secure_json(self, {"error": str(e)}, 500)
-            return
-
-        # /api/push/subscribe — save push subscription
-        if path == '/api/push/subscribe':
-            try:
-                sub_data = _parse_json_body(body)
-                # Support both {subscription: {...}} and direct {...} format
-                if 'subscription' in sub_data:
-                    sub_data = sub_data['subscription']
-                endpoint = sub_data.get('endpoint', '')
-                if not endpoint:
-                    _send_secure_json(self, {"error": "Missing endpoint"}, 400)
-                    return
-                config, sha = read_config()
-                subs = config.get('push_subscriptions', [])
-                subs = [s for s in subs if s.get('endpoint') != endpoint]
-                subs.append({
-                    'endpoint': endpoint,
-                    'keys': sub_data.get('keys'),
-                    'subscribed_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
-                })
-                config['push_subscriptions'] = subs
-                write_config(config, sha)
-                _send_secure_json(self, {"status": "saved", "total": len(subs)})
-            except Exception as e:
-                _send_secure_json(self, {"error": str(e)}, 500)
-            return
-
-        # /api/push/unsubscribe — remove push subscription
-        if path == '/api/push/unsubscribe':
-            try:
-                data = _parse_json_body(body)
-                endpoint = data.get('endpoint', '')
-                if not endpoint:
-                    _send_secure_json(self, {"error": "Missing endpoint"}, 400)
-                    return
-                config, sha = read_config()
-                subs = config.get('push_subscriptions', [])
-                before = len(subs)
-                subs = [s for s in subs if s.get('endpoint') != endpoint]
-                config['push_subscriptions'] = subs
-                write_config(config, sha)
-                _send_secure_json(self, {"status": "removed", "removed": before - len(subs)})
-            except Exception as e:
                 _send_secure_json(self, {"error": str(e)}, 500)
             return
 
