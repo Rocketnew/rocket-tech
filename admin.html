@@ -808,7 +808,16 @@ async function loadBuild(el) {
         <div style="text-align:center;padding: 2rem;">
             <button class="btn btn-primary" style="font-size:1.1rem;padding:1rem 2rem;" onclick="triggerBuild()">🚀 Trigger Build + Deploy</button>
             <p style="color:#666;margin-top:1rem;font-size:0.85rem;">Fetches latest RSS articles, builds index.html, commits & deploys to Vercel</p>
-        </div>
+            </div>
+            <hr style="border:1px solid #1a1a2a;margin:1rem 0;">
+            <h3>🔔 Send Push Notification</h3>
+            <div style="padding:1rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center;">
+              <input id="pushTitle" value="Rupeewa News" style="flex:1;min-width:150px;padding:0.6rem;border-radius:6px;border:1px solid #2a2a3a;background:#12121a;color:#e1e1e8;">
+              <input id="pushMessage" placeholder="Notification message..." style="flex:2;min-width:200px;padding:0.6rem;border-radius:6px;border:1px solid #2a2a3a;background:#12121a;color:#e1e1e8;">
+              <button class="btn btn-primary" onclick="sendPushNotif()">📨 Send</button>
+            </div>
+            <div id="pushResult" style="margin-top:0.5rem"></div>
+            <hr style="border:1px solid #1a1a2a;margin:1rem 0;">
         <div id="buildResult" class="hidden">
             <div class="card"><h3>Build Output</h3>
                 <pre id="buildOutput" style="background:#0c0c12;padding:1rem;border-radius:8px;font-size:0.8rem;max-height:400px;overflow:auto;"></pre>
@@ -888,6 +897,29 @@ function toast(msg) {
     el.textContent = msg;
     el.classList.add('show');
     setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ─── SEND PUSH NOTIFICATION ────────────────────────────────────────
+
+async function sendPushNotif() {
+    const title = document.getElementById('pushTitle')?.value || 'Rupeewa News';
+    const message = document.getElementById('pushMessage')?.value;
+    if (!message) { toast('⚠️ Please enter a message'); return; }
+    const btn = document.querySelector('[onclick="sendPushNotif()"]');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ Sending...'; }
+    try {
+        const result = await api('POST', '/push/send', { title, message });
+        const el = document.getElementById('pushResult');
+        if (result?.status === 'ok') {
+            el.innerHTML = `<span style="color:#4ade80">✅ Sent to ${result.sent}/${result.total} subscribers${result.errors ? ' (' + result.errors.length + ' errors)' : ''}</span>`;
+        } else {
+            el.innerHTML = `<span style="color:#fca5a5">❌ ${result?.error || 'Failed'}</span>`;
+        }
+        if (btn) { btn.disabled = false; btn.textContent = '📨 Send'; }
+    } catch(e) {
+        document.getElementById('pushResult').innerHTML = `<span style="color:#fca5a5">❌ ${e.message}</span>`;
+        if (btn) { btn.disabled = false; btn.textContent = '📨 Send'; }
+    }
 }
 
 // ─── INIT ──────────────────────────────────────────────────────────

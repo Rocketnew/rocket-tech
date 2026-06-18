@@ -12,6 +12,8 @@ ADMIN_USER = os.environ.get('ADMIN_USER', '')
 ADMIN_PASS_HASH = os.environ.get('ADMIN_PASS_HASH', '')
 VERCEL_DEPLOY_HOOK = os.environ.get('VERCEL_DEPLOY_HOOK', '')
 JWT_SECRET = os.environ.get('JWT_SECRET', 'rupeewa-secret-change-me')
+VAPID_PUBLIC_KEY = os.environ.get('VAPID_PUBLIC_KEY', '')
+VAPID_PRIVATE_KEY = os.environ.get('VAPID_PRIVATE_KEY', '')
 
 # ─── RATE LIMITING ───
 _rate_attempts = defaultdict(list)
@@ -649,6 +651,121 @@ class handler(BaseHTTPRequestHandler):
                     logs[-1]['error'] = str(e)
                 config['build_logs'] = logs
                 write_config(config, sha)
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
+        # /api/push/subscribe — save push subscription
+        if path == '/api/push/subscribe':
+            try:
+                sub_data = _parse_json_body(body)
+                # Support both {subscription: {...}} and direct {...} format
+                if 'subscription' in sub_data:
+                    sub_data = sub_data['subscription']
+                endpoint = sub_data.get('endpoint', '')
+                if not endpoint:
+                    _send_secure_json(self, {"error": "Missing endpoint"}, 400)
+                    return
+                config, sha = read_config()
+                subs = config.get('push_subscriptions', [])
+                subs = [s for s in subs if s.get('endpoint') != endpoint]
+                subs.append({
+                    'endpoint': endpoint,
+                    'keys': sub_data.get('keys'),
+                    'subscribed_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+                })
+                config['push_subscriptions'] = subs
+                write_config(config, sha)
+                _send_secure_json(self, {"status": "saved", "total": len(subs)})
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
+        # /api/push/unsubscribe — remove push subscription
+        if path == '/api/push/unsubscribe':
+            try:
+                data = _parse_json_body(body)
+                endpoint = data.get('endpoint', '')
+                if not endpoint:
+                    _send_secure_json(self, {"error": "Missing endpoint"}, 400)
+                    return
+                config, sha = read_config()
+                subs = config.get('push_subscriptions', [])
+                before = len(subs)
+                subs = [s for s in subs if s.get('endpoint') != endpoint]
+                config['push_subscriptions'] = subs
+                write_config(config, sha)
+                _send_secure_json(self, {"status": "removed", "removed": before - len(subs)})
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
+        # /api/push/send — send notification to all subscribers (admin only)
+        if path == '/api/push/send':
+            user = _auth_required(self)
+            if not user:
+                _send_secure_json(self, {"error": "Authentication required"}, 401)
+                return
+            try:
+                data = _parse_json_body(body)
+                title = data.get('title', 'Rupeewa News')
+                message = data.get('message', 'New tech news available!')
+                icon_url = data.get('icon', '/icons/icon-192.png')
+
+                config, _ = read_config()
+                subs = config.get('push_subscriptions', [])
+                if not subs:
+                    _send_secure_json(self, {"status": "ok", "sent": 0, "message": "No subscribers"})
+                    return
+
+                import pywebpush
+                from pywebpush import webpush, WebPushException
+
+                # Read VAPID keys from config (env vars override)
+                vapid_private = VAPID_PRIVATE_KEY or config.get('vapid_private_key', '')
+                vapid_public = VAPID_PUBLIC_KEY or config.get('vapid_public_key', '')
+                if not vapid_private or not vapid_public:
+                    _send_secure_json(self, {"error": "VAPID keys not configured"}, 500)
+                    return
+
+                payload = json.dumps({
+                    'title': title,
+                    'message': message,
+                    'icon': icon_url,
+                    'badge': '/icons/icon-96.png',
+                    'url': 'https://rupeewa.vercel.app/',
+                    'timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+                })
+
+                sent = 0
+                errors = []
+                for sub in subs:
+                    try:
+                        push_info = {
+                            'endpoint': sub['endpoint'],
+                            'keys': sub.get('keys', {})
+                        }
+                        webpush(
+                            subscription_info=push_info,
+                            data=payload,
+                            vapid_private_key=vapid_private,
+                            vapid_claims={"sub": "mailto:admin@rupeewa.vercel.app"}
+                        )
+                        sent += 1
+                    except WebPushException as e:
+                        if e.response and e.response.status_code == 410:
+                            errors.append({"endpoint": sub['endpoint'][:30]+"...", "error": "expired"})
+                        else:
+                            errors.append({"endpoint": sub['endpoint'][:30]+"...", "error": str(e)[:50]})
+                    except Exception as e:
+                        errors.append({"endpoint": sub['endpoint'][:30]+"...", "error": str(e)[:50]})
+
+                _send_secure_json(self, {
+                    "status": "ok",
+                    "sent": sent,
+                    "total": len(subs),
+                    "errors": errors if errors else None
+                })
+            except Exception as e:
                 _send_secure_json(self, {"error": str(e)}, 500)
             return
 

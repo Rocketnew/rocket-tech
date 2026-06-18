@@ -781,7 +781,7 @@ function toggleTheme() {{
   }}
 }})();
 
-const vapidPublicKey = 'BP3qGc-cn0TfGRDAkVrgfYAKqEEIvygeWxR77B1trmNN4Vy5oOj_pLDQLUpVY1Vi0-Bg9GhKFf-STnagdc1R3QM';
+const vapidPublicKey = 'BAhxKaNiIp07Et3p5Fs-GMH5fSwR5fHo_6ghtXPyxon2qQZ3p6JqrvWPXziz6a7kcXd2TvkUnYzLTGt9hDKYrF8';
 
 function urlBase64ToUint8Array(base64String) {{
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -830,7 +830,7 @@ function showPushPrompt() {{
         <strong>Get notified</strong>
         <span>New tech news alerts</span>
       </div>
-      <button class="push-btn" onclick="subscribePush()">Enable</button>
+      <button class="push-btn" onclick="rupeewaSubscribePush()">Enable</button>
       <button class="push-dismiss" onclick="dismissPushPrompt()">&times;</button>
     </div>
   `;
@@ -843,7 +843,7 @@ function dismissPushPrompt() {{
   localStorage.setItem('push_dismissed', 'true');
 }}
 
-async function subscribePush() {{
+async function rupeewaSubscribePush() {{
   const btn = document.querySelector('.push-btn');
   if (btn) btn.disabled = true;
   

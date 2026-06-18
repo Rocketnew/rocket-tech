@@ -85,6 +85,9 @@ def read_config():
             'custom_head_html': '',
             'featured_articles': [],
             'subscribers': [],
+            'push_subscriptions': [],
+            'vapid_public_key': 'BAhxKaNiIp07Et3p5Fs-GMH5fSwR5fHo_6ghtXPyxon2qQZ3p6JqrvWPXziz6a7kcXd2TvkUnYzLTGt9hDKYrF8',
+            'vapid_private_key': 'MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgSj4vU3N-cTiuZ0ZKFrwmS-qljBvAOrsNjRJNDuc-bg2hRANCAAQIcSmjYiKdOxLd6eRbPhjB-X0sEeXx6P-oIbVz8saJ9qkGd6eiaq71j184s-mu5HF3dk75FJ2My0xrfYQymKxf',
             'created_at': datetime.now().isoformat(),
             'updated_at': datetime.now().isoformat()
         }
