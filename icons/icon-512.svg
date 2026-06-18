@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1a1a2e"/>
+  <rect x="24" y="24" width="464" height="464" rx="70" fill="#0f0f23"/>
+  <text x="256" y="190" text-anchor="middle" font-family="Arial,sans-serif" font-size="200" font-weight="bold" fill="#6c63ff">R</text>
+  <text x="256" y="370" text-anchor="middle" font-family="Arial,sans-serif" font-size="70" fill="#888" letter-spacing="6">NEWS</text>
+</svg>

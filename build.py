@@ -390,6 +390,11 @@ def generate_html(all_news):
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#6c63ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Rupeewa">
+  <meta name="mobile-web-app-capable" content="yes">
   <!-- Search bar styles -->
   <style>
       .search-wrapper {{ margin: 1rem 0 0; position: relative; max-width: 480px; }}

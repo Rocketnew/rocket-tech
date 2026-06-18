@@ -1,78 +1,79 @@
-/**
- * Service Worker for Web Push Notifications
- * Rupeewa News Daily
- */
-const CACHE_NAME = 'rupeewa-v1';
-const VAPID_PUBLIC_KEY = 'BP3qGc-cn0TfGRDAkVrgfYAKqEEIvygeWxR77B1trmNN4Vy5oOj_pLDQLUpVY1Vi0-Bg9GhKFf-STnagdc1R3QM';
+const CACHE = 'rupeewa-v1';
+const DYNAMIC_CACHE = 'rupeewa-dynamic-v1';
 
-// Convert base64 string to Uint8Array for push subscription
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-  const rawData = atob(base64);
-  return new Uint8Array([...rawData].map(char => char.charCodeAt(0)));
-}
+const PRECACHE_URLS = [
+  '/',
+  '/style.css',
+  '/manifest.json'
+];
 
 self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE).then(cache => cache.addAll(PRECACHE_URLS))
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(clients.claim());
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(
+      keys.filter(k => k !== CACHE && k !== DYNAMIC_CACHE).map(k => caches.delete(k))
+    ))
+  );
+  self.clients.claim();
 });
 
-// Handle push notification
+// Network first, fallback to cache
+self.addEventListener('fetch', event => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  // API requests — network only
+  if (request.url.includes('/api/')) {
+    return;
+  }
+
+  event.respondWith(
+    fetch(request)
+      .then(response => {
+        const clone = response.clone();
+        caches.open(DYNAMIC_CACHE).then(cache => cache.put(request, clone));
+        return response;
+      })
+      .catch(() => caches.match(request))
+  );
+});
+
+// Push notifications
 self.addEventListener('push', event => {
   if (!event.data) return;
-  
-  const data = event.data.json();
-  const options = {
-    body: data.body || 'New update from Rupeewa News Daily',
-    icon: data.icon || '/logo.jpg',
-    badge: data.badge || '/logo.jpg',
-    image: data.image,
-    vibrate: [100, 50, 100],
-    data: {
-      url: data.url || 'https://rupeewa.vercel.app/',
-      ...data.data
-    },
-    actions: data.actions || [
-      { action: 'open', title: 'Open' },
-      { action: 'close', title: 'Dismiss' }
-    ],
-    requireInteraction: true,
-    tag: data.tag || 'rupeewa-notification',
-    renotify: true
-  };
-  
-  event.waitUntil(
-    self.registration.showNotification(data.title || 'Rupeewa News Daily', options)
-  );
+  try {
+    const data = event.data.json();
+    self.registration.showNotification(data.title || 'Rupeewa News', {
+      body: data.body || 'New article available',
+      icon: '/icons/icon-192.svg',
+      badge: '/icons/icon-192.svg',
+      data: { url: data.url || '/' },
+      vibrate: [200, 100, 200]
+    });
+  } catch {
+    self.registration.showNotification('Rupeewa News', {
+      body: event.data.text(),
+      icon: '/icons/icon-192.svg'
+    });
+  }
 });
 
-// Handle notification click
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  
-  if (event.action === 'close') return;
-  
-  const url = event.notification.data?.url || 'https://rupeewa.vercel.app/';
-  
+  const url = event.notification.data?.url || '/';
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      // Focus existing tab if open
-      for (const client of clientList) {
-        if (client.url === url && 'focus' in client) {
-          return client.focus();
-        }
-      }
-      // Open new tab
-      return clients.openWindow(url);
+    clients.matchAll({ type: 'window' }).then(clientsArr => {
+      const had = clientsArr.some(client => {
+        if (client.url === url && 'focus' in client) return client.focus();
+        return false;
+      });
+      if (!had && clients.openWindow) clients.openWindow(url);
     })
   );
-});
-
-// Handle notification close
-self.addEventListener('notificationclose', event => {
-  console.log('Notification closed:', event.notification.tag);
 });
