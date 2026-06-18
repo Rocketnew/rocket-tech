@@ -922,9 +922,18 @@ class handler(BaseHTTPRequestHandler):
             try:
                 filename = up_match.group(1)
                 img_path = f'admin/images/{filename}'
-                # Get SHA of the file first
-                content, sha = read_github_file(img_path)
-                if sha is None:
+                # Get SHA of the file first (without decoding binary content)
+                import requests
+                url = f'https://api.github.com/repos/{REPO}/contents/{img_path}'
+                headers = {'User-Agent': 'rupeewa-admin', 'Accept': 'application/vnd.github.v3+json'}
+                if GITHUB_TOKEN:
+                    headers['Authorization'] = f'Bearer {GITHUB_TOKEN}'
+                r = requests.get(url, headers=headers, timeout=10)
+                if r.status_code != 200:
+                    _send_secure_json(self, {"error": "Image not found"}, 404)
+                    return
+                sha = r.json().get('sha')
+                if not sha:
                     _send_secure_json(self, {"error": "Image not found"}, 404)
                     return
                 if delete_github_file(img_path, sha, f'admin: delete image {filename}'):
