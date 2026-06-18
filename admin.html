@@ -255,6 +255,7 @@
                 <a href="#" data-page="seo" onclick="navigate('seo')">🔍 SEO Settings</a>
                 <a href="#" data-page="build" onclick="navigate('build')">🚀 Build</a>
                 <a href="#" data-page="subscribers" onclick="navigate('subscribers')">📧 Subscribers</a>
+                <a href="#" data-page="images" onclick="navigate('images')">🖼️ Images</a>
             </nav>
             <div class="user-badge" id="userBadge">admin</div>
             <button class="logout-btn" onclick="logout()">🚪 Sign Out</button>
@@ -365,6 +366,7 @@ function loadPage(page) {
     else if (page === 'seo') loadSeo(el);
     else if (page === 'build') loadBuild(el);
     else if (page === 'subscribers') loadSubscribers(el);
+    else if (page === 'images') loadImages(el);
 }
 
 // ─── CREATE CUSTOM ARTICLE ──────────────────────────────────────────
@@ -634,6 +636,7 @@ async function loadArticles(el) {
                         <td>
                             <button class="btn btn-sm ${a.is_featured ? 'btn-outline' : 'btn-primary'}" onclick="toggleFeatured('${escapeUrl(a.url)}', ${!a.is_featured})">${a.is_featured ? 'Unfeature' : 'Feature'}</button>
                             <button class="btn btn-sm btn-danger" onclick="toggleHidden('${escapeUrl(a.url)}', ${!a.is_hidden})">${a.is_hidden ? 'Show' : 'Hide'}</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteCustomArticle('${a.url}', ${a.id})">🗑️ Delete</button>
                         </td>
                     </tr>
                 `).join('')}
@@ -710,6 +713,61 @@ async function deleteSource(id) {
     if (!confirm('Delete this source?')) return;
     const data = await api('DELETE', `/sources/${id}`);
     if (data) { toast('🗑️ Deleted'); loadPage('sources'); }
+}
+
+async function deleteCustomArticle(url, id) {
+    if (!confirm('Delete this custom article?')) return;
+    const data = await api('DELETE', `/articles/${id}`);
+    if (data) { toast('🗑️ Article deleted'); loadPage('articles'); }
+}
+
+async function loadImages(el) {
+    const data = await api('GET', '/images');
+    if (!data) { el.innerHTML = '<p>Failed to load images</p>'; return; }
+
+    el.innerHTML = `
+        <h1>🖼️ Uploaded Images</h1>
+        <p class="subtitle">${data.total} images in admin/images/</p>
+        <div class="card">
+            <h3>Upload New Image</h3>
+            <div style="display:grid;grid-template-columns:1fr 100px;gap:0.5rem;margin-bottom:1rem;">
+                <input type="file" id="imgUpload" accept="image/*" style="padding:0.5rem;">
+                <button class="btn btn-primary" onclick="uploadImage()">Upload</button>
+            </div>
+        </div>
+        ${data.images.length ? `
+        <div class="card">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:1rem;">
+                ${data.images.map(img => `
+                    <div style="border:1px solid #333;border-radius:8px;padding:0.5rem;text-align:center;">
+                        <img src="${img.url}" alt="${escapeHtml(img.name)}" style="max-width:100%;height:auto;border-radius:4px;margin-bottom:0.5rem;">
+                        <div style="font-size:0.75rem;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(img.name)}</div>
+                        <div style="font-size:0.7rem;color:#666;">${(img.size/1024).toFixed(1)} KB</div>
+                        <button class="btn btn-sm btn-danger" style="margin-top:0.5rem;width:100%;" onclick="deleteImage('${escapeAttr(img.name)}', '${escapeAttr(img.sha)}')">🗑️ Delete</button>
+                    </div>
+                `).join('')}
+            </div>
+        </div>` : '<div class="card"><p style="color:#666">No images uploaded yet</p></div>'}
+    `;
+}
+
+async function uploadImage() {
+    const fileInput = document.getElementById('imgUpload');
+    if (!fileInput.files.length) { toast('Select an image first'); return; }
+    const file = fileInput.files[0];
+    const reader = new FileReader();
+    reader.onload = async () => {
+        const base64 = reader.result.split(',')[1];
+        const data = await api('POST', '/upload', { filename: file.name, data: base64 });
+        if (data) { toast('✅ Uploaded: ' + data.url); fileInput.value = ''; loadPage('images'); }
+    };
+    reader.readAsDataURL(file);
+}
+
+async function deleteImage(name, sha) {
+    if (!confirm('Delete this image?')) return;
+    const data = await api('DELETE', `/uploads/${encodeURIComponent(name)}`);
+    if (data) { toast('🗑️ Deleted'); loadPage('images'); }
 }
 
 // ─── SEO SETTINGS ──────────────────────────────────────────────────

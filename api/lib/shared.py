@@ -70,6 +70,20 @@ def upload_image(filename, base64_data):
         return f'https://raw.githubusercontent.com/{REPO}/main/{path}'
     return None
 
+def delete_github_file(path, sha, message='admin: delete file'):
+    """Delete a file from GitHub repo using the API."""
+    import requests
+    url = f'https://api.github.com/repos/{REPO}/contents/{path}'
+    headers = {'User-Agent': 'rupeewa-admin'}
+    if GITHUB_TOKEN:
+        headers['Authorization'] = f'Bearer {GITHUB_TOKEN}'
+    payload = {
+        'message': message,
+        'sha': sha
+    }
+    r = requests.delete(url, json=payload, headers=headers)
+    return r.status_code in (200, 202, 204)
+
 def read_config():
     """Read admin config from GitHub."""
     config, sha = read_github_file(CONFIG_PATH)

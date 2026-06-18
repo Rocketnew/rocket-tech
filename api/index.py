@@ -6,7 +6,7 @@ from urllib.parse import urlparse, parse_qs
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from lib.shared import read_config, write_config, get_build_stats, GITHUB_TOKEN, REPO, read_github_file, write_github_file, upload_image
+from lib.shared import read_config, write_config, get_build_stats, GITHUB_TOKEN, REPO, read_github_file, write_github_file, upload_image, delete_github_file
 
 ADMIN_USER = os.environ.get('ADMIN_USER', '')
 ADMIN_PASS_HASH = os.environ.get('ADMIN_PASS_HASH', '')
@@ -346,6 +346,16 @@ class handler(BaseHTTPRequestHandler):
             _send_secure_json(self, {"articles": articles[:limit], "total": total})
             return
 
+        # /api/articles/custom — list custom articles from GitHub
+        if path == '/api/articles/custom':
+            try:
+                custom, _ = read_github_file('admin/custom_articles.json')
+                arts = custom.get('articles', []) if custom else []
+                _send_secure_json(self, {"articles": arts, "total": len(arts)})
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
         # /api/sources
         if path == '/api/sources':
             config, _ = read_config()
@@ -372,6 +382,30 @@ class handler(BaseHTTPRequestHandler):
             if not latest.get('timestamp'):
                 latest = _push_latest
             _send_secure_json(self, latest)
+            return
+
+        # /api/images — list uploaded images from GitHub
+        if path == '/api/images':
+            try:
+                import requests
+                url = f'https://api.github.com/repos/{REPO}/contents/admin/images'
+                headers = {'User-Agent': 'rupeewa-admin', 'Accept': 'application/vnd.github.v3+json'}
+                if GITHUB_TOKEN:
+                    headers['Authorization'] = f'Bearer {GITHUB_TOKEN}'
+                r = requests.get(url, headers=headers, timeout=10)
+                if r.status_code != 200:
+                    _send_secure_json(self, {"images": [], "total": 0})
+                    return
+                files = r.json()
+                images = [{
+                    'name': f['name'],
+                    'size': f['size'],
+                    'url': f['download_url'],
+                    'sha': f['sha']
+                } for f in files if isinstance(f, dict) and f.get('type') == 'file' and f['name'].lower().rsplit('.', 1)[-1] in ('png','jpg','jpeg','gif','webp','svg','ico')]
+                _send_secure_json(self, {"images": images, "total": len(images)})
+            except Exception as e:
+                _send_secure_json(self, {"images": [], "total": 0, "error": str(e)})
             return
 
         # /api/seo
@@ -857,6 +891,48 @@ class handler(BaseHTTPRequestHandler):
         user = _auth_required(self)
         if not user:
             _send_secure_json(self, {"error": "Authentication required"}, 401)
+            return
+
+        # DELETE /api/articles/{id} — delete custom article by ID
+        art_match = re.match(r'^/api/articles/(\d+)$', path)
+        if art_match:
+            try:
+                article_id = int(art_match.group(1))
+                CUSTOM_PATH = 'admin/custom_articles.json'
+                articles, sha = read_github_file(CUSTOM_PATH)
+                if articles is None:
+                    _send_secure_json(self, {"error": "No custom articles found"}, 404)
+                    return
+                before = len(articles.get('articles', []))
+                articles['articles'] = [a for a in articles.get('articles', []) if a.get('id') != article_id]
+                if len(articles['articles']) == before:
+                    _send_secure_json(self, {"error": "Article not found"}, 404)
+                    return
+                if write_github_file(CUSTOM_PATH, articles, sha, f'admin: deleted article #{article_id}'):
+                    _send_secure_json(self, {"status": "deleted", "id": article_id})
+                else:
+                    _send_secure_json(self, {"error": "Failed to delete"}, 500)
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
+        # DELETE /api/uploads/{filename} — delete uploaded image from GitHub
+        up_match = re.match(r'^/api/uploads/(.+)$', path)
+        if up_match:
+            try:
+                filename = up_match.group(1)
+                img_path = f'admin/images/{filename}'
+                # Get SHA of the file first
+                content, sha = read_github_file(img_path)
+                if sha is None:
+                    _send_secure_json(self, {"error": "Image not found"}, 404)
+                    return
+                if delete_github_file(img_path, sha, f'admin: delete image {filename}'):
+                    _send_secure_json(self, {"status": "deleted", "filename": filename})
+                else:
+                    _send_secure_json(self, {"error": "Failed to delete image"}, 500)
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
             return
 
         # DELETE /api/sources/{id}
