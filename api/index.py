@@ -362,13 +362,12 @@ class handler(BaseHTTPRequestHandler):
             if not _check_rate_limit(f"login:{client_ip}", LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW, LOGIN_BLOCK_DURATION):
                 _send_secure_json(self, {"error": "Too many attempts. Try again in 15 minutes."}, 429)
                 return
-            params = parse_qs(body)
-            if not params or not params.get('username', [''])[0]:
-                json_body = _parse_json_body(body)
-                if json_body:
-                    params = {k: [v] if not isinstance(v, list) else v for k, v in json_body.items()}
-            username = params.get('username', [''])[0]
-            password = params.get('password', [''])[0]
+            try:
+                data = json.loads(body)
+            except (json.JSONDecodeError, TypeError):
+                data = {}
+            username = data.get('username', '').strip()
+            password = data.get('password', '')
 
             # Check credentials from env + config fallback
             admin_user, admin_hash = _get_admin_creds()
@@ -532,6 +531,36 @@ class handler(BaseHTTPRequestHandler):
                     _send_secure_json(self, {"url": url})
                 else:
                     _send_secure_json(self, {"error": "Upload failed"}, 500)
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
+        # /api/seo — get/set SEO settings including Google Analytics ID
+        if path == '/api/seo':
+            try:
+                config, sha = read_config()
+                if method == 'GET':
+                    _send_secure_json(self, {
+                        "site_name": config.get('site_name', ''),
+                        "site_description": config.get('site_description', ''),
+                        "site_keywords": config.get('site_keywords', ''),
+                        "og_title": config.get('og_title', ''),
+                        "og_description": config.get('og_description', ''),
+                        "twitter_handle": config.get('twitter_handle', ''),
+                        "google_analytics_id": config.get('google_analytics_id', ''),
+                        "custom_head_html": config.get('custom_head_html', '')
+                    })
+                elif method == 'POST':
+                    data = _parse_json_body(body)
+                    for key in ('site_name', 'site_description', 'site_keywords',
+                                'og_title', 'og_description', 'twitter_handle',
+                                'google_analytics_id', 'custom_head_html'):
+                        if key in data:
+                            config[key] = data[key]
+                    if write_config(config, sha):
+                        _send_secure_json(self, {"status": "ok"})
+                    else:
+                        _send_secure_json(self, {"error": "Failed to save"}, 500)
             except Exception as e:
                 _send_secure_json(self, {"error": str(e)}, 500)
             return
