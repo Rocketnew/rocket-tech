@@ -386,10 +386,19 @@ async function loadCreateArticle(el) {
                 <div class="char-count" id="caTitleCount">0 / 120</div>
             </div>
             <div class="form-row">
-                <label for="caImage">Image URL</label>
-                <input type="url" id="caImage" placeholder="https://example.com/image.jpg" oninput="previewImage(this.value)" />
-                <img id="caImagePreview" class="image-preview" alt="Preview" />
-                <div class="form-hint">Paste an image URL to show a preview</div>
+                <label for="caImage">Image</label>
+                <div style="display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex;gap:8px;align-items:center">
+                        <input type="file" id="caImageFile" accept="image/*" style="flex:1;padding:8px;background:#12121a;border:1px dashed #333;border-radius:8px;color:#aaa" />
+                        <button class="btn btn-outline" onclick="uploadImageFile()" style="white-space:nowrap">📤 Upload</button>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;color:#666;font-size:0.85rem">
+                        <span>— or paste URL —</span>
+                        <input type="url" id="caImage" placeholder="https://..." style="flex:1" oninput="previewImage(this.value)" />
+                    </div>
+                    <img id="caImagePreview" class="image-preview" alt="Preview" style="display:none" />
+                    <div id="caImageStatus" class="form-hint" style="color:#888"></div>
+                </div>
             </div>
             <div class="form-row">
                 <label for="caContent">Content / Summary</label>
@@ -426,6 +435,46 @@ async function loadCreateArticle(el) {
     document.getElementById('caTitle')?.addEventListener('input', function() {
         document.getElementById('caTitleCount').textContent = this.value.length + ' / 120';
     });
+}
+
+// Image upload handler
+async function uploadImageFile() {
+    const fileInput = document.getElementById('caImageFile');
+    const statusEl = document.getElementById('caImageStatus');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+        statusEl.textContent = '⚠️ Please select an image file first';
+        return;
+    }
+    const file = fileInput.files[0];
+    if (file.size > 5 * 1024 * 1024) {
+        statusEl.textContent = '⚠️ Image too large (max 5MB)';
+        return;
+    }
+    statusEl.textContent = '⏳ Uploading...';
+    try {
+        // Read file as base64
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+            const base64Data = e.target.result.split(',')[1];
+            const res = await api('POST', '/upload', {
+                filename: file.name,
+                data: base64Data
+            });
+            if (res && res.url) {
+                document.getElementById('caImage').value = res.url;
+                previewImage(res.url);
+                statusEl.textContent = '✅ Image uploaded! URL pasted above.';
+            } else {
+                statusEl.textContent = '❌ Upload failed: ' + (res?.error || 'Unknown error');
+            }
+        };
+        reader.onerror = function() {
+            statusEl.textContent = '❌ Failed to read file';
+        };
+        reader.readAsDataURL(file);
+    } catch (e) {
+        statusEl.textContent = '❌ ' + e.message;
+    }
 }
 
 // Image preview

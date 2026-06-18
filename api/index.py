@@ -6,7 +6,7 @@ from urllib.parse import urlparse, parse_qs
 from collections import defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from lib.shared import read_config, write_config, get_build_stats, GITHUB_TOKEN, REPO, read_github_file, write_github_file
+from lib.shared import read_config, write_config, get_build_stats, GITHUB_TOKEN, REPO, read_github_file, write_github_file, upload_image
 
 ADMIN_USER = os.environ.get('ADMIN_USER', '')
 ADMIN_PASS_HASH = os.environ.get('ADMIN_PASS_HASH', '')
@@ -514,6 +514,24 @@ class handler(BaseHTTPRequestHandler):
                     _send_secure_json(self, {"status": "created", "id": new_id, "article": article})
                 else:
                     _send_secure_json(self, {"error": "Failed to save"}, 500)
+            except Exception as e:
+                _send_secure_json(self, {"error": str(e)}, 500)
+            return
+
+        # /api/upload — upload an image to GitHub repo
+        if path == '/api/upload':
+            try:
+                data = _parse_json_body(body)
+                filename = data.get('filename', 'image.png')
+                img_data = data.get('data', '')
+                if not img_data:
+                    _send_secure_json(self, {"error": "No image data provided"}, 400)
+                    return
+                url = upload_image(filename, img_data)
+                if url:
+                    _send_secure_json(self, {"url": url})
+                else:
+                    _send_secure_json(self, {"error": "Upload failed"}, 500)
             except Exception as e:
                 _send_secure_json(self, {"error": str(e)}, 500)
             return
