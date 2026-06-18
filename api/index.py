@@ -598,40 +598,57 @@ class handler(BaseHTTPRequestHandler):
                 _send_secure_json(self, {"error": str(e)}, 500)
             return
 
-        # /api/build or /api/build/trigger — trigger Vercel deploy
+        # /api/build or /api/build/trigger — trigger GitHub Actions workflow (Build + Deploy)
         if path in ('/api/build', '/api/build/trigger'):
             import requests as req
-            if not VERCEL_DEPLOY_HOOK:
-                _send_secure_json(self, {"status": "no_hook", "message": "No Vercel deploy hook configured"})
+            from lib.shared import GITHUB_TOKEN, REPO
+            if not GITHUB_TOKEN:
+                _send_secure_json(self, {"status": "no_token", "message": "No GitHub token configured — builds work automatically on git push"}, 200)
                 return
             # Record build log
             config, sha = read_config()
             build_logs = config.get('build_logs', [])
             build_logs.append({
-                'status': 'running',
+                'status': 'triggered',
                 'articles': 0,
                 'started': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
                 'error': None
             })
             config['build_logs'] = build_logs
             write_config(config, sha)
-            # Trigger hook
+            # Trigger GitHub Actions workflow_dispatch
             try:
-                r = req.post(VERCEL_DEPLOY_HOOK, timeout=15)
+                wf_url = f"https://api.github.com/repos/{REPO}/actions/workflows/deploy.yml/dispatches"
+                r = req.post(wf_url, json={"ref": "main"}, headers={
+                    "Authorization": f"Bearer {GITHUB_TOKEN}",
+                    "User-Agent": "rupeewa-admin",
+                    "Accept": "application/vnd.github+json"
+                }, timeout=15)
+                status = "triggered" if r.status_code in (204, 201, 200) else "trigger_failed"
                 # Update last log entry
                 config, sha = read_config()
                 logs = config.get('build_logs', [])
                 if logs:
-                    logs[-1]['status'] = 'success' if r.status_code < 400 else 'failed'
+                    logs[-1]['status'] = status
                     logs[-1]['finished'] = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+                    if status == "trigger_failed":
+                        logs[-1]['error'] = f"GitHub API returned {r.status_code}"
                 config['build_logs'] = logs
                 write_config(config, sha)
                 _send_secure_json(self, {
-                    "status": "triggered" if r.status_code < 400 else "hook_failed",
+                    "status": status,
                     "hook_status": r.status_code,
-                    "output": f"Deploy hook returned {r.status_code}"
+                    "output": f"Build workflow {'triggered' if status == 'triggered' else f'failed ({r.status_code})'}"
                 })
             except Exception as e:
+                # Mark last log as failed
+                config, sha = read_config()
+                logs = config.get('build_logs', [])
+                if logs:
+                    logs[-1]['status'] = 'failed'
+                    logs[-1]['error'] = str(e)
+                config['build_logs'] = logs
+                write_config(config, sha)
                 _send_secure_json(self, {"error": str(e)}, 500)
             return
 
