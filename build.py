@@ -375,16 +375,12 @@ def generate_html(all_news):
         card_img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
         card_img_tag = f'<img src="{escape(img)}" alt="{escape(title)}" loading="lazy" width="800" height="450" onerror="this.style.display=\'none\'" class="card-img-tag">' if img else ''
         fallback_hidden = ' style="display:none"' if img else ''
-        # Assign omg10 link for ads on images (every 3rd card)
-        omg_idx = idx % len(OMG10_LINKS)
-        omg_link_cards = OMG10_LINKS[omg_idx] if idx % 3 == 0 else ''
 
         cards_html += f'\n    <article class="news-card source-accent-{src_class}" data-source="{src_class}" itemscope itemtype="https://schema.org/NewsArticle">\n' + \
     f'      <meta itemprop="datePublished" content="{iso_date}">\n' + \
     f'      <meta property="article:author" content="{creator if item.get("creator") else source}">\n' + \
     f'      <meta property="article:section" content="{source}">\n' + \
     f'      <meta property="article:tag" content="{source}">\n' + \
-    (f'      <a href="{omg_link_cards}" target="_blank" rel="noopener noreferrer" class="card-img-link">\n' if omg_link_cards else '') + \
     f'      <div class="card-img-wrapper">\n' + \
     f'        <div class="card-img"{card_img_style}>{card_img_tag}</div>\n' + \
     f'        <div class="card-fallback"{fallback_hidden}>\n' + \
@@ -392,7 +388,6 @@ def generate_html(all_news):
     f'          <div class="source-pattern"></div>\n' + \
     f'          <span class="source-icon" style="background:{color};color:#000">{icon}</span>\n' + \
     f'        </div>\n' + \
-    (f'      </a>\n' if omg_link_cards else '') + \
     f'        <h3 class="card-source-tag" style="background:{color};color:#000">{source}</h3>\n' + \
     f'      </div>\n' + \
     f'      <div class="card-body">\n' + \
@@ -408,18 +403,11 @@ def generate_html(all_news):
     f'    </article>'
         # Insert ad containers after card 8, 16, 24
         if (idx + 1) % 8 == 0 and (idx + 1) // 8 <= len(ad_slots):
-            slot_idx = (idx + 1) // 8 - 1
-            slot_id = ad_slots[slot_idx]
-            omg_link = OMG10_LINKS[slot_idx % len(OMG10_LINKS)]
-            cards_html += f'''
-    <div class="ad-slot" data-ad-slot="{slot_id}">
-      <div class="ad-label">— Sponsored —</div>
-      <div class="ad-container">
-        <a href="{omg_link}" target="_blank" rel="noopener noreferrer" onclick="window.open(this.href,'_blank');return false;">
-          <img src="{OMG10_IMG}" alt="{OMG10_IMG_ALT}" loading="lazy" width="800" height="450" style="width:100%;height:auto;border-radius:12px;cursor:pointer" onerror="this.style.display=\'none\'">
-        </a>
-      </div>
-    </div>'''
+            slot_id = ad_slots[(idx + 1) // 8 - 1]
+            cards_html += f'\n    <div class="ad-slot" data-ad-slot="{slot_id}">\n' + \
+    f'      <div class="ad-label">\u2014 Sponsored \u2014</div>\n' + \
+    f'      <div id="{slot_id}" class="ad-container"></div>\n' + \
+    f'    </div>'
 
     # Source filter buttons
     source_buttons = ''
@@ -585,6 +573,24 @@ def generate_html(all_news):
       </div>
     </article>
     </a>
+    <!-- omg10 Ad Links -->
+    <div class="omg10-ads" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:15px 0 5px">
+      <a href="https://omg10.com/4/11203450" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
+        <img src="ad_img_1.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
+      </a>
+      <a href="https://omg10.com/4/11203449" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
+        <img src="ad_img_2.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
+      </a>
+      <a href="https://omg10.com/4/11056764" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
+        <img src="ad_img_3.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
+      </a>
+      <a href="https://omg10.com/4/11061096" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
+        <img src="ad_img_4.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
+      </a>
+      <a href="https://omg10.com/4/11056769" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
+        <img src="ad_img_5.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
+      </a>
+    </div>
     <div class="hero-header-divider"><span>Featured Stories</span></div>
     <div class="featured-grid">
       {hero_cards_html}
@@ -604,12 +610,6 @@ def generate_html(all_news):
     </div>
     {load_more_html}
   </section>
-    <!-- Promote Ad Banner -->
-    <div class="promote-banner" style="text-align:center;margin:20px auto;max-width:800px;padding:0 15px">
-      <a href="https://omg10.com/4/11203450" target="_blank" rel="noopener noreferrer">
-        <img src="ad_screenshot.jpg" alt="Promote" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
-      </a>
-    </div>
 </main>
 
 <footer>
