@@ -1,0 +1,55 @@
+{
+  "version": "v8.0",
+  "generated_at": 1782474518,
+  "seed": 1485395,
+  "use_mobile": true,
+  "fingerprint": {
+    "ua": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.6668.100 Mobile Safari/537.36",
+    "viewport": [
+      412,
+      914
+    ],
+    "platform": "Android",
+    "touch_points": 5,
+    "cores": 6,
+    "memory": 8,
+    "canvas_noise": 1,
+    "canvas_noise_range": 11,
+    "canvas_noise_floor": 3,
+    "webgl_vendor": "Mozilla (Intel)",
+    "webgl_renderer": "ANGLE (Intel, Intel(R) UHD Graphics 630 Direct3D11 vs_5_0 ps_5_0)",
+    "webgl_alpha_bits": 0.67,
+    "webgl_depth_bits": 16,
+    "webgl_stencil_bits": 8,
+    "battery_charging": true,
+    "battery_charging_time": "0",
+    "battery_discharging_time": "10800",
+    "battery_level": 0.12,
+    "avail_width": 1366,
+    "avail_height": 768,
+    "color_depth": 48,
+    "pixel_depth": 30,
+    "audio_noise": 3.633e-05,
+    "languages": [
+      "en-IN",
+      "en"
+    ],
+    "locale": "en-AU",
+    "calendar": "gregorian",
+    "numbering_system": "latn",
+    "timezone": "America/Chicago",
+    "chrome_ver": "129.0.6668.100",
+    "chrome_ext_id": "ad352842aa5fe9c1947bd24ff61816c8"
+  },
+  "behavior": {
+    "scroll_speed": "normal",
+    "scroll_pause_min": 0.3,
+    "scroll_pause_max": 3.0,
+    "click_delay_min": 0.1,
+    "click_delay_max": 0.6,
+    "mouse_speed": "normal",
+    "distraction_chance": 0.15
+  },
+  "proxy_chance": 0.11,
+  "visits_per_cycle": 5
+}

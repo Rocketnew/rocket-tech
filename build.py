@@ -46,7 +46,19 @@ FEEDS = {
 SITE_URL = "https://rupeewa.vercel.app"
 SITE_NAME = "Rupeewa News Daily"
 SITE_DESC = "Stay ahead with the latest tech news, AI breakthroughs, startup stories, and gadget reviews. Curated daily from Hacker News, TechCrunch, The Verge, and more."
+SITE_KEYWORDS = "tech news, AI, artificial intelligence, startups, gadgets, cybersecurity, Hacker News, TechCrunch, Ars Technica, Wired, The Verge, daily tech digest"
 HERO_IMG = "https://rupeewa.vercel.app/logo.jpg"
+
+# --- OMG10 AD LINKS (clickable images) ---
+OMG10_LINKS = [
+    "https://omg10.com/4/11203450",
+    "https://omg10.com/4/11203449",
+    "https://omg10.com/4/11056764",
+    "https://omg10.com/4/11061096",
+    "https://omg10.com/4/11056769",
+]
+OMG10_IMG = "https://rupeewa.vercel.app/refer-earn-2.jpg"
+OMG10_IMG_ALT = "Sponsored"
 
 def fetch_rss(url, timeout=15):
     try:
@@ -162,10 +174,29 @@ def format_time(pub_date_str):
     else:
         return f'{int(hours / 24)}d ago'
 
+def format_iso_date(pub_date_str):
+    """Convert RSS date string to ISO 8601 format."""
+    if not pub_date_str:
+        return None
+    formats = ['%a, %d %b %Y %H:%M:%S %z', '%a, %d %b %Y %H:%M:%S %Z',
+               '%Y-%m-%dT%H:%M:%S%z', '%Y-%m-%dT%H:%M:%S.%f%z',
+               '%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S']
+    for fmt in formats:
+        try:
+            return datetime.strptime(pub_date_str.strip(), fmt).isoformat()
+        except:
+            continue
+    return pub_date_str[:10] if pub_date_str else None
+
 def generate_jsonld(all_news):
     """Generate all JSON-LD structured data blocks."""
-    social_links = ["https://github.com/Rocketnew/rocket-tech"]
+    social_links = [
+        "https://github.com/Rocketnew/rocket-tech",
+        "https://x.com/rupeewa",
+        "https://twitter.com/rupeewa"
+    ]
 
+    # 1. Organization schema
     org_schema = json.dumps({
         "@context": "https://schema.org",
         "@type": "Organization",
@@ -175,6 +206,25 @@ def generate_jsonld(all_news):
         "sameAs": social_links
     }, ensure_ascii=False)
 
+    # 2. BreadcrumbList schema
+    sources = sorted(set(item["source"] for item in all_news))
+    breadcrumb_items = [
+        {"@type": "ListItem", "position": 1, "name": "Home", "item": SITE_URL + "/"}
+    ]
+    for i, src in enumerate(sources):
+        breadcrumb_items.append({
+            "@type": "ListItem",
+            "position": i + 2,
+            "name": f"{src} News",
+            "item": SITE_URL + "/#" + src.lower().replace(" ", "-")
+        })
+    breadcrumb_schema = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": breadcrumb_items
+    }, ensure_ascii=False)
+
+    # 3. WebSite + SearchAction (SiteLinksSearchBox)
     website_schema = json.dumps({
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -191,16 +241,33 @@ def generate_jsonld(all_news):
         }
     }, ensure_ascii=False)
 
-    # NewsArticle schema for first 9 articles
+    # 4. WebPage schema with breadcrumb reference
+    webpage_schema = json.dumps({
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": SITE_NAME + " — Today's Top Tech News",
+        "description": SITE_DESC,
+        "url": SITE_URL + "/",
+        "breadcrumb": {
+            "@id": SITE_URL + "/#breadcrumb"
+        },
+        "speakable": {
+            "@type": "SpeakableSpecification",
+            "cssSelector": [".hero-header h1", ".hero-header p", ".featured-card h2"]
+        }
+    }, ensure_ascii=False)
+
+    # 5. NewsArticle schema for first 9 articles
     article_blocks = []
     for item in all_news[:9]:
+        iso_date = format_iso_date(item.get("published", "")) or datetime.now().isoformat()
         schema = {
             "@context": "https://schema.org",
             "@type": "NewsArticle",
             "headline": item["title"],
             "description": item["description"][:200],
             "image": item.get("image") or HERO_IMG,
-            "datePublished": item.get("published") or datetime.now().isoformat(),
+            "datePublished": iso_date,
             "author": {
                 "@type": "Person",
                 "name": item.get("creator") or item["source"]
@@ -218,21 +285,9 @@ def generate_jsonld(all_news):
         }
         article_blocks.append(json.dumps(schema, ensure_ascii=False))
 
-    # Speakable schema for Google AI Overview
-    speakable_schema = json.dumps({
-        "@context": "https://schema.org",
-        "@type": "WebPage",
-        "name": SITE_NAME,
-        "url": SITE_URL,
-        "speakable": {
-            "@type": "SpeakableSpecification",
-            "cssSelector": [".hero-header h1", ".hero-header p", ".featured-card h2"]
-        }
-    }, ensure_ascii=False)
-
-    # FAQPage schema for site categories
+    # 6. FAQPage schema for site categories
     faq_blocks = []
-    for src in sorted(set(item["source"] for item in all_news)):
+    for src in sources:
         faq_blocks.append({
             "@type": "Question",
             "name": f"Latest {src} news today",
@@ -247,7 +302,7 @@ def generate_jsonld(all_news):
         "mainEntity": faq_blocks[:5]
     }, ensure_ascii=False)
 
-    return org_schema, website_schema, article_blocks, speakable_schema, faq_schema
+    return org_schema, website_schema, breadcrumb_schema, webpage_schema, article_blocks, faq_schema
 
 def generate_html(all_news):
     now = datetime.now().strftime('%b %d, %Y · %I:%M %p')
@@ -256,12 +311,15 @@ def generate_html(all_news):
     sources = sorted(set(item['source'] for item in all_news))
     load_more_html = '<div class="load-more-wrapper"><button id="loadMore" class="load-more-btn">Show More Stories</button></div>' if len(all_news) > 48 else ''
 
-    # Generate JSON-LD
-    json_org, json_website, json_articles, json_speakable, json_faq = generate_jsonld(all_news)
-    json_articles_html = '\n'.join(
-        f'  <script type="application/ld+json">{a}</script>' for a in json_articles
-    ) + '\n  <script type="application/ld+json">' + json_speakable + '</script>'
-    json_articles_html += '\n  <script type="application/ld+json">' + json_faq + '</script>'
+    # Generate JSON-LD (6 values: org, website, breadcrumb, webpage, articles, faq)
+    (json_org, json_website, json_breadcrumb, json_webpage,
+     json_articles, json_faq) = generate_jsonld(all_news)
+    schema_blocks = [json_org, json_website, json_breadcrumb, json_webpage, json_faq]
+    for a in json_articles:
+        schema_blocks.append(a)
+    json_ld_html = '\n'.join(
+        f'    <script type="application/ld+json">{s}</script>' for s in schema_blocks
+    )
 
     # Hero: top 3 articles with images (or without)
     hero_cards_html = ''
@@ -279,10 +337,11 @@ def generate_html(all_news):
         img = item.get('image', '')
 
         img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
+        hero_img_tag = f'<img src="{escape(img)}" alt="" loading="lazy" width="1200" height="675" onerror="this.style.display=\'none\'">' if img else ''
 
         hero_cards_html += f'''
-    <a href="{link}" target="_blank" rel="noopener" class="featured-card" data-area="{areas[i]}">
-      <div class="featured-bg"{img_style}></div>
+    <a href="{link}" target="_blank" rel="noopener noreferrer" class="featured-card" data-area="{areas[i]}">
+      <div class="featured-bg"{img_style}>{hero_img_tag}</div>
       <div class="featured-gradient"></div>
       <div class="featured-content">
         <span class="featured-source"><span class="source-dot" style="background:{color};--dot-color:{color}"></span>{escape(item['source'])}</span>
@@ -310,38 +369,57 @@ def generate_html(all_news):
         source = escape(item['source'])
         creator = escape(item['creator']) if item.get('creator') else ''
         img = item.get('image', '')
+        iso_date = format_iso_date(item.get('published', '')) or ''
+        read_time = max(1, len(item['title'].split()) // 8 + 1)
         src_class = source.lower().replace(' ', '').replace('.', '')
         card_img_style = f' style="background-image:url(\'{escape(img)}\')"' if img else ''
+        card_img_tag = f'<img src="{escape(img)}" alt="{escape(title)}" loading="lazy" width="800" height="450" onerror="this.style.display=\'none\'" class="card-img-tag">' if img else ''
         fallback_hidden = ' style="display:none"' if img else ''
+        # Assign omg10 link for ads on images (every 3rd card)
+        omg_idx = idx % len(OMG10_LINKS)
+        omg_link_cards = OMG10_LINKS[omg_idx] if idx % 3 == 0 else ''
 
         cards_html += f'\n    <article class="news-card source-accent-{src_class}" data-source="{src_class}" itemscope itemtype="https://schema.org/NewsArticle">\n' + \
-    f'      <meta itemprop="datePublished" content="{escape(item.get("published", ""))}">\n' + \
+    f'      <meta itemprop="datePublished" content="{iso_date}">\n' + \
+    f'      <meta property="article:author" content="{creator if item.get("creator") else source}">\n' + \
+    f'      <meta property="article:section" content="{source}">\n' + \
+    f'      <meta property="article:tag" content="{source}">\n' + \
+    (f'      <a href="{omg_link_cards}" target="_blank" rel="noopener noreferrer" class="card-img-link">\n' if omg_link_cards else '') + \
     f'      <div class="card-img-wrapper">\n' + \
-    f'        <div class="card-img"{card_img_style}></div>\n' + \
+    f'        <div class="card-img"{card_img_style}>{card_img_tag}</div>\n' + \
     f'        <div class="card-fallback"{fallback_hidden}>\n' + \
     f'          <div class="source-gradient source-gradient-{src_class}"></div>\n' + \
     f'          <div class="source-pattern"></div>\n' + \
     f'          <span class="source-icon" style="background:{color};color:#000">{icon}</span>\n' + \
     f'        </div>\n' + \
-    f'        <span class="card-source-tag" style="background:{color};color:#000">{source}</span>\n' + \
+    (f'      </a>\n' if omg_link_cards else '') + \
+    f'        <h3 class="card-source-tag" style="background:{color};color:#000">{source}</h3>\n' + \
     f'      </div>\n' + \
     f'      <div class="card-body">\n' + \
-    f'        <h3 itemprop="headline"><a href="{link}" target="_blank" rel="noopener" itemprop="url">{title}</a></h3>\n' + \
+    f'        <h2 itemprop="headline"><a href="{link}" target="_blank" rel="noopener noreferrer" itemprop="url">{title}</a></h2>\n' + \
     (f'        <p itemprop="description">{desc}</p>\n' if desc else '') + \
     f'        <div class="card-meta">\n' + \
-    f'          <span class="card-time"><time datetime="{escape(item.get("published", ""))}">{time_ago}</time></span>\n' + \
+    f'          <span class="card-time"><time datetime="{iso_date}">{time_ago}</time></span>\n' + \
     (f'          <span class="card-author" itemprop="author">{creator}</span>\n' if creator else '') + \
+    f'          <span class="card-readtime">{read_time} min read</span>\n' + \
     f'          <span class="card-arrow">\u2192</span>\n' + \
     f'        </div>\n' + \
     f'      </div>\n' + \
     f'    </article>'
         # Insert ad containers after card 8, 16, 24
         if (idx + 1) % 8 == 0 and (idx + 1) // 8 <= len(ad_slots):
-            slot_id = ad_slots[(idx + 1) // 8 - 1]
-            cards_html += f'\n    <div class="ad-slot" data-ad-slot="{slot_id}">\n' + \
-    f'      <div class="ad-label">\u2014 Sponsored \u2014</div>\n' + \
-    f'      <div id="{slot_id}" class="ad-container"></div>\n' + \
-    f'    </div>'
+            slot_idx = (idx + 1) // 8 - 1
+            slot_id = ad_slots[slot_idx]
+            omg_link = OMG10_LINKS[slot_idx % len(OMG10_LINKS)]
+            cards_html += f'''
+    <div class="ad-slot" data-ad-slot="{slot_id}">
+      <div class="ad-label">— Sponsored —</div>
+      <div class="ad-container">
+        <a href="{omg_link}" target="_blank" rel="noopener noreferrer" onclick="window.open(this.href,'_blank');return false;">
+          <img src="{OMG10_IMG}" alt="{OMG10_IMG_ALT}" loading="lazy" width="800" height="450" style="width:100%;height:auto;border-radius:12px;cursor:pointer" onerror="this.style.display=\'none\'">
+        </a>
+      </div>
+    </div>'''
 
     # Source filter buttons
     source_buttons = ''
@@ -369,7 +447,7 @@ def generate_html(all_news):
     GA_TAG = ""
     if GA_ID:
         GA_TAG = f"""\n<!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
+    <script async defer src="https://www.googletagmanager.com/gtag/js?id={GA_ID}"></script>
     <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){{dataLayer.push(arguments);}}
@@ -385,12 +463,15 @@ def generate_html(all_news):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{SITE_DESC}">
     <meta name="robots" content="index, follow">
-    <meta name="keywords" content="{SITE_DESC}">
+    <meta name="keywords" content="{SITE_KEYWORDS}">
     <meta name="author" content="{SITE_NAME}">
+    <meta name="google-site-verification" content="4lKhG4kpuIxY8trSyF3P4g685OgZlY1l09pk29As63k">
     <meta property="article:published_time" content="{iso_now}">
     <meta property="article:modified_time" content="{iso_now}">
     <meta name="date" content="{today_str}">
     <link rel="canonical" href="{SITE_URL}/">
+    <!-- Cache Control -->
+    <meta http-equiv="Cache-Control" content="public, max-age=3600, stale-while-revalidate=86400">
     <!-- Open Graph / Social Meta -->
     <meta property="og:title" content="{SITE_NAME} — Today's Top Tech News">
     <meta property="og:description" content="{SITE_DESC}">
@@ -400,13 +481,13 @@ def generate_html(all_news):
     <meta property="og:site_name" content="{SITE_NAME}">
     <meta property="og:locale" content="en_US">
     <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:site" content="@rupeewa">
+    <meta name="twitter:creator" content="@rupeewa">
     <meta name="twitter:title" content="{SITE_NAME} — Today's Top Tech News">
     <meta name="twitter:description" content="{SITE_DESC}">
     <meta name="twitter:image" content="{HERO_IMG}">
     <!-- JSON-LD Structured Data -->
-    <script type="application/ld+json">{json_org}</script>
-    <script type="application/ld+json">{json_website}</script>
-{json_articles_html}
+{json_ld_html}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
@@ -417,65 +498,37 @@ def generate_html(all_news):
     <meta name="apple-mobile-web-app-title" content="Rupeewa">
     <meta name="mobile-web-app-capable" content="yes">
 {GA_TAG}{CUSTOM_HEAD}
-    <!-- Search bar styles -->
+    <!-- Inline critical styles (minified) -->
     <style>
-      .search-wrapper {{ margin: 1rem 0 0; position: relative; max-width: 480px; }}
-      .search-input {{
-          width: 100%; padding: 0.7rem 1rem 0.7rem 2.5rem; border-radius: 12px;
-          border: 1px solid #2a2a3a; background: #12121a; color: #e1e1e8;
-          font-size: 0.9rem; outline: none; transition: all 0.2s;
-          box-sizing: border-box;
-      }}
-      .search-input:focus {{ border-color: #6c63ff; box-shadow: 0 0 0 3px rgba(108,99,255,0.1); }}
-      .search-input::placeholder {{ color: #555; }}
-      .search-results {{
-          position: absolute; top: 100%; left: 0; right: 0; z-index: 100;
-          background: #1a1a24; border: 1px solid #2a2a3a; border-radius: 12px;
-          margin-top: 4px; max-height: 360px; overflow-y: auto;
-          box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-      }}
-      .search-results a {{
-          display: block; padding: 0.7rem 1rem; color: #e1e1e8; text-decoration: none;
-          border-bottom: 1px solid #1e1e2e; font-size: 0.85rem;
-          transition: background 0.1s;
-      }}
-      .search-results a:last-child {{ border-bottom: none; }}
-      .search-results a:hover {{ background: rgba(108,99,255,0.05); }}
-      .search-results .sr-source {{ font-size: 0.7rem; color: #6c63ff; text-transform: uppercase; letter-spacing: 0.3px; }}
-      .search-results .sr-title {{ display: block; margin-top: 2px; }}
-      .search-results .sr-none {{ padding: 1rem; color: #666; text-align: center; font-size: 0.85rem; }}
-      .search-results .sr-count {{ padding: 0.5rem 1rem; font-size: 0.75rem; color: #555; }}
-      /* ─── Mobile Nav —── */
-      .nav-hamburger {{ display: none; flex-direction: column; gap: 4px; background: none; border: none; cursor: pointer; padding: 8px; }}
-      .nav-hamburger span {{ display: block; width: 20px; height: 2px; background: #aaa; border-radius: 2px; transition: 0.3s; }}
-      .nav-right.mobile-open {{ display: flex !important; flex-direction: column; position: absolute; top: 100%; left: 0; right: 0; background: #0a0a0f; padding: 1rem; border-bottom: 1px solid #1a1a2e; z-index: 100; }}
-      /* ─── Theme Toggle —── */
-      .theme-toggle {{ background: none; border: 1px solid #333; border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center; transition: 0.3s; }}
-      .theme-toggle:hover {{ border-color: #6c63ff; background: #1a1a2e; }}
-      @media (max-width: 768px) {{
-        .nav-hamburger {{ display: flex; }}
-        .nav-right {{ display: none; }}
-        .nav-right.mobile-open {{ display: flex !important; }}
-        .nav-update {{ display: none; }}
-      }}
-      /* ─── Light Theme —── */
-      [data-theme="light"] {{
-        --bg: #f5f5f8; --bg-card: #ffffff; --text: #1a1a2e;
-        --text-secondary: #555; --border: #e0e0e8;
-      }}
-      [data-theme="light"] body {{ background: var(--bg, #f5f5f8); color: var(--text, #1a1a2e); }}
-      [data-theme="light"] .nav-right.mobile-open {{ background: #fff; border-color: #e0e0e8; }}
-      [data-theme="light"] .theme-toggle {{ border-color: #ccc; }}
-      [data-theme="light"] .theme-toggle:hover {{ border-color: #6c63ff; background: #eee; }}
+      .nav-hamburger{{display:none;flex-direction:column;gap:4px;background:none;border:none;cursor:pointer;padding:8px}}
+      .nav-hamburger span{{display:block;width:20px;height:2px;background:#aaa;border-radius:2px;transition:0.3s}}
+      .nav-right.mobile-open{{display:flex!important;flex-direction:column;position:absolute;top:100%;left:0;right:0;background:#0a0a0f;padding:1rem;border-bottom:1px solid #1a1a2e;z-index:100}}
+      .theme-toggle{{background:none;border:1px solid #333;border-radius:50%;width:32px;height:32px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:0.3s}}
+      .theme-toggle:hover{{border-color:#6c63ff;background:#1a1a2e}}
+      @media(max-width:768px){{.nav-hamburger{{display:flex}}.nav-right{{display:none}}.nav-right.mobile-open{{display:flex!important}}.nav-update{{display:none}}}}
+      [data-theme="light"]{{--bg:#f5f5f8;--bg-card:#fff;--text:#1a1a2e;--text-secondary:#555;--border:#e0e0e8}}
+      [data-theme="light"] body{{background:var(--bg,#f5f5f8);color:var(--text,#1a1a2e)}}
+      [data-theme="light"] .nav-right.mobile-open{{background:#fff;border-color:#e0e0e8}}
+      [data-theme="light"] .theme-toggle{{border-color:#ccc}}
+      [data-theme="light"] .theme-toggle:hover{{border-color:#6c63ff;background:#eee}}
+      .skip-link{{position:absolute;top:-100%;left:0;z-index:1000;padding:0.75rem 1.5rem;background:#6c63ff;color:#fff;font-weight:600;font-size:0.95rem;border-radius:0 0 8px 0;text-decoration:none;transition:top 0.2s}}
+      .skip-link:focus{{top:0}}
+      .card-readtime{{font-size:0.7rem;color:#888;margin-left:0.5rem;white-space:nowrap}}
   </style>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%237c3aed'/><stop offset='100%25' stop-color='%236366f1'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='%230a0a0f'/><text x='50' y='72' font-size='60' text-anchor='middle'>🚀</text></svg>">
+  <link rel="icon" type="image/svg+xml" sizes="any" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%237c3aed'/><stop offset='100%25' stop-color='%236366f1'/></linearGradient></defs><rect width='100' height='100' rx='20' fill='%230a0a0f'/><text x='50' y='72' font-size='60' text-anchor='middle'>🚀</text></svg>">
+  <link rel="icon" type="image/png" sizes="32x32" href="logo.jpg">
+  <link rel="apple-touch-icon" sizes="180x180" href="logo.jpg">
+  <link rel="apple-touch-icon" sizes="120x120" href="logo.jpg">
   <!-- Monetag -->
   <meta name="monetag" content="f777923a656a6851a964b8cb54790337">
   <link rel="dns-prefetch" href="https://cdn.monetag.com">
   <link rel="preconnect" href="https://cdn.monetag.com" crossorigin>
-  <script src="https://quge5.com/88/tag.min.js" data-zone="247762" async data-cfasync="false"></script>
+  <script src="https://quge5.com/88/tag.min.js" data-zone="247762" async defer data-cfasync="false"></script>
 </head>
 <body>
+
+<!-- Skip to main content -->
+<a href="#main-content" class="skip-link" tabindex="0">Skip to main content</a>
 
 <!-- Reading Progress Bar -->
 <div id="progress-bar" role="progressbar" aria-label="Reading progress"></div>
@@ -487,7 +540,7 @@ def generate_html(all_news):
   <nav class="nav-inner" aria-label="Main navigation">
     <div class="nav-left">
       <a href="/" class="nav-logo" aria-label="{SITE_NAME} Home">
-        <img src="logo.jpg" alt="{SITE_NAME}" class="nav-logo-svg" style="height:50px;width:auto;object-fit:contain">
+        <img src="logo.jpg" alt="{SITE_NAME}" class="nav-logo-svg" width="65" height="65" loading="lazy" style="height:65px;width:auto;object-fit:contain">
         <span class="nav-logo-text">Rupeewa</span>
         <span class="nav-logo-badge">News Daily</span>
       </a>
@@ -503,7 +556,7 @@ def generate_html(all_news):
   </nav>
 </header>
 
-<main>
+<main id="main-content">
   <section class="hero-section" aria-label="Featured stories">
     <div class="hero-header">
       <h1>Today's <span class="gradient-text">Tech</span></h1>
@@ -514,7 +567,7 @@ def generate_html(all_news):
         <div id="searchResults" class="search-results" style="display:none"></div>
       </div>
     </div>
-    <a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener" class="refer-card-link">
+    <a href="https://rupeewa.com/?invite=MNTAYR" target="_blank" rel="noopener noreferrer" class="refer-card-link">
     <article class="news-card refer-card" data-source="rupeewa" aria-label="Rupeewa App - Refer & Earn">
       <div class="card-img-wrapper">
         <div class="card-img" style="background-image:url('refer-earn.jpg');background-size:cover;background-position:center"></div>
@@ -522,7 +575,7 @@ def generate_html(all_news):
         <span class="card-source-tag" style="background:linear-gradient(135deg,#7c3aed,#6366f1);color:#fff">&rarr; Refer &amp; Earn</span>
       </div>
       <div class="card-body">
-        <h3>&#x1f525; Rupeewa App &mdash; Refer &amp; Earn!</h3>
+        <h2>&#x1f525; Rupeewa App &mdash; Refer &amp; Earn!</h2>
         <p>&#x1f4f1; WhatsApp tasks karo aur &#x20b9;100+ withdraw karo! Same as Athena App. Limited time offer &mdash; join now and start earning!</p>
         <div class="card-meta">
           <span class="card-time">&#x1f525; Limited Offer</span>
@@ -551,13 +604,19 @@ def generate_html(all_news):
     </div>
     {load_more_html}
   </section>
+    <!-- Promote Ad Banner -->
+    <div class="promote-banner" style="text-align:center;margin:20px auto;max-width:800px;padding:0 15px">
+      <a href="https://omg10.com/4/11203450" target="_blank" rel="noopener noreferrer">
+        <img src="ad_screenshot.jpg" alt="Promote" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
+      </a>
+    </div>
 </main>
 
 <footer>
   <div class="footer-inner">
     <div class="footer-brand" aria-label="{SITE_NAME}">🚀 {SITE_NAME}</div>
     <div class="footer-links">
-      <a href="https://github.com/Rocketnew/rocket-tech" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/Rocketnew/rocket-tech" target="_blank" rel="noopener noreferrer">GitHub</a>
       <span aria-hidden="true">\u00b7</span>
       <span>Daily at 7 AM</span>
       <span aria-hidden="true">\u00b7</span>
@@ -738,7 +797,7 @@ document.getElementById('searchInput')?.addEventListener('input', function() {{
   }} else {{
     results.innerHTML = '<div class="sr-count">' + matches.length + ' result' + (matches.length > 1 ? 's' : '') + '</div>' +
       matches.slice(0, 10).map(m =>
-        '<a href="' + m.link + '" target="_blank" rel="noopener">' +
+        '<a href="' + m.link + '" target="_blank" rel="noopener noreferrer">' +
         '<span class="sr-source">' + m.source + '</span>' +
         '<span class="sr-title">' + m.title + '</span></a>'
       ).join('');
@@ -918,16 +977,53 @@ fetch('/notification.json?v=' + Date.now())
 </html>'''
     return output_template
 
-def generate_sitemap():
-    """Generate a basic sitemap.xml."""
-    return '''<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>''' + SITE_URL + '''/</loc>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-</urlset>'''
+def generate_sitemap(all_news):
+    """Generate a comprehensive sitemap.xml with homepage and all article URLs."""
+    SOURCE_PRIORITIES = {
+        "Hacker News": "0.8",
+        "TechCrunch": "0.7",
+        "The Verge": "0.7",
+        "DEV Community": "0.6",
+        "Ars Technica": "0.7",
+        "Wired": "0.6"
+    }
+    SOURCE_CHANGEFREQ = {
+        "Hacker News": "hourly",
+        "TechCrunch": "hourly",
+        "The Verge": "hourly",
+        "DEV Community": "daily",
+        "Ars Technica": "daily",
+        "Wired": "daily"
+    }
+
+    lines = ['<?xml version="1.0" encoding="UTF-8"?>']
+    lines.append('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+
+    # Homepage
+    lines.append('  <url>')
+    lines.append(f'    <loc>{SITE_URL}/</loc>')
+    lines.append('    <changefreq>daily</changefreq>')
+    lines.append('    <priority>1.0</priority>')
+    lines.append('  </url>')
+
+    # Article URLs (one entry per unique external URL, categorized by source)
+    seen_urls = set()
+    for item in all_news:
+        url = item.get('link', '').strip()
+        if not url or url in seen_urls:
+            continue
+        seen_urls.add(url)
+        source = item.get('source', '')
+        priority = SOURCE_PRIORITIES.get(source, '0.5')
+        changefreq = SOURCE_CHANGEFREQ.get(source, 'weekly')
+        lines.append('  <url>')
+        lines.append(f'    <loc>{escape(url)}</loc>')
+        lines.append(f'    <changefreq>{changefreq}</changefreq>')
+        lines.append(f'    <priority>{priority}</priority>')
+        lines.append('  </url>')
+
+    lines.append('</urlset>')
+    return '\n'.join(lines)
 
 def generate_robots():
     """Generate robots.txt."""
@@ -995,7 +1091,7 @@ def main():
     print(f"   → {out}")
     
     # Generate sitemap.xml
-    sm = generate_sitemap()
+    sm = generate_sitemap(unique)
     sm_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sitemap.xml')
     with open(sm_path, 'w', encoding='utf-8') as f:
         f.write(sm)

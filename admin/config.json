@@ -33,7 +33,7 @@
   "og_description": "Stay ahead with curated tech news from Hacker News, TechCrunch, The Verge, and more. Updated daily!",
   "twitter_handle": "@rupeewa",
   "google_analytics_id": "",
-  "custom_head_html": "<script>alert(1)</script><p>safe</p>",
+  "custom_head_html": "",
   "featured_articles": [],
   "subscribers": [
     {
