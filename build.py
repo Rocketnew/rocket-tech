@@ -573,23 +573,34 @@ def generate_html(all_news):
       </div>
     </article>
     </a>
-    <!-- omg10 Ad Links -->
-    <div class="omg10-ads" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:15px 0 5px">
-      <a href="https://omg10.com/4/11203450" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
-        <img src="ad_img_1.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
-      </a>
-      <a href="https://omg10.com/4/11203449" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
-        <img src="ad_img_2.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
-      </a>
-      <a href="https://omg10.com/4/11056764" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
-        <img src="ad_img_3.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
-      </a>
-      <a href="https://omg10.com/4/11061096" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
-        <img src="ad_img_4.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
-      </a>
-      <a href="https://omg10.com/4/11056769" target="_blank" rel="noopener noreferrer" style="flex:1;min-width:150px;max-width:190px">
-        <img src="ad_img_5.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer" onerror="this.style.display='none'">
-      </a>
+    <!-- omg10 Ad Links - Line by Line -->
+    <div class="omg10-ads-section" style="margin:20px auto 10px;max-width:800px;padding:0 15px">
+      <div class="ad-label" style="text-align:center;color:#888;font-size:12px;margin-bottom:8px">-- Sponsored --</div>
+      <div class="omg10-ad-row" style="margin-bottom:12px">
+        <a href="https://omg10.com/4/11203450" target="_blank" rel="noopener noreferrer">
+          <img src="ad_img_1.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer;display:block" onerror="this.style.display='none'">
+        </a>
+      </div>
+      <div class="omg10-ad-row" style="margin-bottom:12px">
+        <a href="https://omg10.com/4/11203449" target="_blank" rel="noopener noreferrer">
+          <img src="ad_img_2.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer;display:block" onerror="this.style.display='none'">
+        </a>
+      </div>
+      <div class="omg10-ad-row" style="margin-bottom:12px">
+        <a href="https://omg10.com/4/11056764" target="_blank" rel="noopener noreferrer">
+          <img src="ad_img_3.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer;display:block" onerror="this.style.display='none'">
+        </a>
+      </div>
+      <div class="omg10-ad-row" style="margin-bottom:12px">
+        <a href="https://omg10.com/4/11061096" target="_blank" rel="noopener noreferrer">
+          <img src="ad_img_4.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer;display:block" onerror="this.style.display='none'">
+        </a>
+      </div>
+      <div class="omg10-ad-row" style="margin-bottom:12px">
+        <a href="https://omg10.com/4/11056769" target="_blank" rel="noopener noreferrer">
+          <img src="ad_img_5.jpg" alt="Sponsored" loading="lazy" style="width:100%;height:auto;border-radius:8px;cursor:pointer;display:block" onerror="this.style.display='none'">
+        </a>
+      </div>
     </div>
     <div class="hero-header-divider"><span>Featured Stories</span></div>
     <div class="featured-grid">
