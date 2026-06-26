@@ -326,11 +326,6 @@
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://www.wired.com/story/walmart-deals-apd-06-25-2026/</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
     <loc>https://techcrunch.com/2026/06/25/amazon-ups-india-bet-with-fresh-13b-ai-infrastructure-investment/</loc>
     <changefreq>hourly</changefreq>
     <priority>0.7</priority>
@@ -416,6 +411,16 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://www.wired.com/story/walmart-deals-apd-06-26-2026/</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://dev.to/derrickryangiggs/i-built-a-hybrid-search-engine-from-scratch-heres-what-i-learned-llm-zoomcamp-2026-module-2-3jdj</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://dev.to/vigilmon/i-switched-from-uptimerobot-to-vigilmon-heres-what-changed-epc</loc>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
@@ -467,11 +472,6 @@
   </url>
   <url>
     <loc>https://dev.to/bravian1/how-to-use-your-google-cloud-credits-for-gemini-again-via-vertex-ai-and-adc-7ei</loc>
-    <changefreq>daily</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://dev.to/grabbit/puppeteer-vs-playwright-for-screenshots-which-should-you-use-1o92</loc>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
