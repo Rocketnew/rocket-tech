@@ -50,7 +50,7 @@
     }
   ],
   "created_at": "2026-06-16T01:45:00+00:00",
-  "updated_at": "2026-06-18T10:13:37.678562",
+  "updated_at": "2026-06-27T06:38:06.719713",
   "push_subscriptions": [
     {
       "endpoint": "https://updates.push.services.mozilla.com/wpush/v1/test",
@@ -59,6 +59,14 @@
         "auth": "test123"
       },
       "subscribed_at": "2026-06-18T10:13:37Z"
+    },
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/dQYBem4hizg:APA91bFFwvkj8vrVuRlLsaSN3u0ovWhT8_KSm2y-APWr3vFA58X47Ymuro1VzSpMqogWHa7Nk8iKg9diPpupO6ydH76cv499N2vlx7M8sH_1KFeMetTIg6B-O8BPi-I-QKNaj8P0Nsfw",
+      "keys": {
+        "p256dh": "BAPRiCq7uxZA3Subc_mI7oXi1InHmHU_-E-NhWNH870eBpAiMEhOnrYXx8ULnsdVdExT2OxJ9XrsTJTOaKS08UA",
+        "auth": "PAkkTQD9C4Tq3zCBV49uPA"
+      },
+      "subscribed_at": "2026-06-27T06:38:06Z"
     }
   ]
 }
